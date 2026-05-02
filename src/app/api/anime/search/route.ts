@@ -6,7 +6,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const q = searchParams.get('q') || ''
 
-    if (!q || q.length < 2) {
+    if (!q || q.length < 1) {
       return NextResponse.json({ anime: [] })
     }
 
@@ -14,10 +14,10 @@ export async function GET(request: NextRequest) {
       where: {
         status: 'published',
         OR: [
-          { title: { contains: q } },
-          { titleEn: { contains: q } },
-          { description: { contains: q } },
-          { genres: { contains: q } },
+          { title: { contains: q, mode: 'insensitive' } },
+          { titleEn: { contains: q, mode: 'insensitive' } },
+          { description: { contains: q, mode: 'insensitive' } },
+          { genres: { contains: q, mode: 'insensitive' } },
         ],
       },
       orderBy: { views: 'desc' },
