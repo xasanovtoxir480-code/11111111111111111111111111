@@ -62,18 +62,19 @@ export default function HomePage() {
       exit={{ opacity: 0 }}
       className="min-h-screen bg-gray-950"
     >
-      <div className="mx-auto max-w-7xl px-4 pb-24 pt-4 md:px-6">
-        {/* Hero Carousel */}
+      {/* Hero Carousel - full width */}
         {topAnime.length > 0 && (
           <motion.section
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="mb-8"
+            className="mb-8 px-3 pt-3 md:px-6 md:pt-4"
           >
             <AnimeCarousel anime={topAnime} />
           </motion.section>
         )}
+
+      <div className="mx-auto max-w-7xl px-4 pb-24 md:px-6">
 
         {/* Scheduled Anime */}
         {scheduledAnime.length > 0 && (
