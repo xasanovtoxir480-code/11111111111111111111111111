@@ -6,8 +6,8 @@ import AdminSidebar from '@/components/layout/AdminSidebar'
 import { motion } from 'framer-motion'
 import {
   Plus, Trash2, Loader2, Search, Crown, Wallet, ChevronDown, ChevronUp,
-  Eye, Users, PlayCircle, DollarSign, Film, Calendar, Upload, X, Image, Video,
-  CheckCircle2,
+  Eye, Users, PlayCircle, DollarSign, Film, Calendar, X, Image, Video,
+  CheckCircle2, AlertCircle,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -23,6 +23,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
+import { useToast } from '@/hooks/use-toast'
 
 type AdminTab = 'stats' | 'add-anime' | 'schedule' | 'users' | 'ongoing'
 
@@ -43,11 +44,11 @@ export default function AdminPanel() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.2 }}
         >
-          {activeTab === 'stats' && <StatsTab token={token} authHeaders={authHeaders} />}
-          {activeTab === 'add-anime' && <AddAnimeTab token={token} authHeaders={authHeaders} />}
-          {activeTab === 'schedule' && <ScheduleTab token={token} authHeaders={authHeaders} />}
-          {activeTab === 'users' && <UsersTab token={token} authHeaders={authHeaders} />}
-          {activeTab === 'ongoing' && <OngoingTab token={token} authHeaders={authHeaders} />}
+          {activeTab === 'stats' && <StatsTab authHeaders={authHeaders} />}
+          {activeTab === 'add-anime' && <AddAnimeTab authHeaders={authHeaders} />}
+          {activeTab === 'schedule' && <ScheduleTab authHeaders={authHeaders} />}
+          {activeTab === 'users' && <UsersTab authHeaders={authHeaders} />}
+          {activeTab === 'ongoing' && <OngoingTab authHeaders={authHeaders} />}
         </motion.div>
       )}
     </AdminSidebar>
@@ -64,7 +65,6 @@ function FileUpload({
   onUploaded,
   preview,
   onClear,
-  uploading,
 }: {
   label: string
   accept: string
@@ -72,30 +72,57 @@ function FileUpload({
   onUploaded: (url: string) => void
   preview?: string | null
   onClear?: () => void
-  uploading?: boolean
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [uploading, setUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState('')
+  const { toast } = useToast()
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+
+    setUploading(true)
+    setUploadProgress('Yuklanmoqda...')
 
     const formData = new FormData()
     formData.append('file', file)
     formData.append('type', type)
 
     try {
+      const token = localStorage.getItem('sessionToken')
       const res = await fetch('/api/upload', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${localStorage.getItem('sessionToken')}` },
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: formData,
       })
       const data = await res.json()
-      if (data.url) {
+
+      if (res.ok && data.url) {
         onUploaded(data.url)
+        setUploadProgress('')
+        toast({
+          title: 'Fayl yuklandi!',
+          description: `${file.name} muvaffaqiyatli yuklandi`,
+        })
+      } else {
+        setUploadProgress('')
+        toast({
+          title: 'Xatolik',
+          description: data.error || 'Fayl yuklashda xatolik yuz berdi',
+          variant: 'destructive',
+        })
       }
     } catch (err) {
+      setUploadProgress('')
+      toast({
+        title: 'Xatolik',
+        description: 'Internet bilan muammo, qaytadan urinib ko\'ring',
+        variant: 'destructive',
+      })
       console.error('Upload failed:', err)
+    } finally {
+      setUploading(false)
     }
 
     // Reset input
@@ -112,6 +139,9 @@ function FileUpload({
           {isImage ? (
             <div className="relative h-32 w-full overflow-hidden rounded-lg border border-white/10 bg-gray-800">
               <img src={preview} alt="Preview" className="h-full w-full object-contain" />
+              <div className="absolute bottom-1 right-1 flex items-center gap-1 rounded-md bg-green-500/90 px-2 py-0.5 text-xs text-white">
+                <CheckCircle2 className="h-3 w-3" /> Yuklangan
+              </div>
             </div>
           ) : (
             <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-gray-800 p-3">
@@ -119,6 +149,9 @@ function FileUpload({
               <div className="flex-1 min-w-0">
                 <p className="truncate text-sm text-white">Video yuklangan</p>
                 <p className="text-xs text-gray-500">{preview}</p>
+              </div>
+              <div className="flex items-center gap-1 rounded-md bg-green-500/90 px-2 py-0.5 text-xs text-white">
+                <CheckCircle2 className="h-3 w-3" />
               </div>
             </div>
           )}
@@ -133,22 +166,34 @@ function FileUpload({
         </div>
       ) : (
         <div
-          onClick={() => fileInputRef.current?.click()}
-          className="mt-1 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-white/10 bg-gray-800/50 p-4 transition-colors hover:border-purple-500/50 hover:bg-gray-800"
+          onClick={() => !uploading && fileInputRef.current?.click()}
+          className={`mt-1 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-4 transition-colors ${
+            uploading
+              ? 'border-purple-500/50 bg-purple-500/5'
+              : 'border-white/10 bg-gray-800/50 hover:border-purple-500/50 hover:bg-gray-800'
+          }`}
         >
           {uploading ? (
-            <Loader2 className="h-6 w-6 animate-spin text-purple-400" />
+            <>
+              <Loader2 className="h-6 w-6 animate-spin text-purple-400" />
+              <p className="text-sm text-purple-400">{uploadProgress || 'Yuklanmoqda...'}</p>
+            </>
           ) : isImage ? (
-            <Image className="h-6 w-6 text-gray-500" />
+            <>
+              <Image className="h-6 w-6 text-gray-500" />
+              <p className="text-sm text-gray-400">Fayl tanlash uchun bosing</p>
+            </>
           ) : (
-            <Video className="h-6 w-6 text-gray-500" />
+            <>
+              <Video className="h-6 w-6 text-gray-500" />
+              <p className="text-sm text-gray-400">Fayl tanlash uchun bosing</p>
+            </>
           )}
-          <p className="text-sm text-gray-400">
-            {uploading ? 'Yuklanmoqda...' : 'Fayl tanlash uchun bosing'}
-          </p>
-          <p className="text-xs text-gray-600">
-            {isImage ? 'JPG, PNG, WebP, GIF' : 'MP4, WebM, OGG'} (max 100MB)
-          </p>
+          {!uploading && (
+            <p className="text-xs text-gray-600">
+              {isImage ? 'JPG, PNG, WebP, GIF' : 'MP4, WebM, OGG'} (max 100MB)
+            </p>
+          )}
         </div>
       )}
       <input
@@ -165,7 +210,7 @@ function FileUpload({
 /* ==========================================
    STATS TAB
    ========================================== */
-function StatsTab({ token, authHeaders }: { token: string | null; authHeaders: () => Record<string, string> }) {
+function StatsTab({ authHeaders }: { authHeaders: () => Record<string, string> }) {
   const [stats, setStats] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
@@ -224,7 +269,8 @@ function StatsTab({ token, authHeaders }: { token: string | null; authHeaders: (
 /* ==========================================
    ADD ANIME TAB
    ========================================== */
-function AddAnimeTab({ token, authHeaders }: { token: string | null; authHeaders: () => Record<string, string> }) {
+function AddAnimeTab({ authHeaders }: { authHeaders: () => Record<string, string> }) {
+  const { toast } = useToast()
   const [animeList, setAnimeList] = useState<AnimeItem[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -236,16 +282,12 @@ function AddAnimeTab({ token, authHeaders }: { token: string | null; authHeaders
     title: '', titleEn: '', logo: '', cover: '',
     genres: '', year: '2024', description: '', isOngoing: true, videoUrl: '',
   })
-  const [uploadingLogo, setUploadingLogo] = useState(false)
-  const [uploadingCover, setUploadingCover] = useState(false)
-  const [uploadingVideo, setUploadingVideo] = useState(false)
 
   // Episode form state
   const [epForm, setEpForm] = useState({
     number: 1, title: '', videoUrl: '',
   })
   const [epSubmitting, setEpSubmitting] = useState(false)
-  const [epUploadingVideo, setEpUploadingVideo] = useState(false)
 
   const fetchAnime = useCallback(async () => {
     setLoading(true)
@@ -263,50 +305,119 @@ function AddAnimeTab({ token, authHeaders }: { token: string | null; authHeaders
   useEffect(() => { fetchAnime() }, [fetchAnime])
 
   const handleAddAnime = async () => {
+    if (!form.title) {
+      toast({ title: 'Xatolik', description: 'Anime nomini kiriting', variant: 'destructive' })
+      return
+    }
+    if (!form.logo) {
+      toast({ title: 'Xatolik', description: 'Logo rasmni yuklang', variant: 'destructive' })
+      return
+    }
+    if (!form.genres) {
+      toast({ title: 'Xatolik', description: 'Janrlarni kiriting', variant: 'destructive' })
+      return
+    }
+    if (!form.description) {
+      toast({ title: 'Xatolik', description: 'Tavsifni kiriting', variant: 'destructive' })
+      return
+    }
+
     setSubmitting(true)
     try {
-      await fetch('/api/anime', {
+      const res = await fetch('/api/anime', {
         method: 'POST',
         headers: authHeaders(),
         body: JSON.stringify(form),
       })
-      setDialogOpen(false)
-      setForm({ title: '', titleEn: '', logo: '', cover: '', genres: '', year: '2024', description: '', isOngoing: true, videoUrl: '' })
-      fetchAnime()
+      const data = await res.json()
+
+      if (res.ok) {
+        toast({
+          title: 'Anime qo\'shildi!',
+          description: `"${form.title}" muvaffaqiyatli qo'shildi`,
+        })
+        setDialogOpen(false)
+        setForm({ title: '', titleEn: '', logo: '', cover: '', genres: '', year: '2024', description: '', isOngoing: true, videoUrl: '' })
+        fetchAnime()
+      } else {
+        toast({
+          title: 'Xatolik',
+          description: data.error || 'Anime qo\'shishda xatolik yuz berdi',
+          variant: 'destructive',
+        })
+      }
     } catch (err) {
+      toast({
+        title: 'Xatolik',
+        description: 'Internet bilan muammo, qaytadan urinib ko\'ring',
+        variant: 'destructive',
+      })
       console.error('Failed to add anime:', err)
     } finally {
       setSubmitting(false)
     }
   }
 
-  const handleDeleteAnime = async (id: string) => {
+  const handleDeleteAnime = async (id: string, title: string) => {
+    if (!confirm(`"${title}" ni o'chirmoqchimisiz?`)) return
+
     try {
-      await fetch(`/api/anime/${id}`, { method: 'DELETE', headers: authHeaders() })
-      setAnimeList((prev) => prev.filter((a) => a.id !== id))
-    } catch { /* silent */ }
+      const res = await fetch(`/api/anime/${id}`, { method: 'DELETE', headers: authHeaders() })
+      if (res.ok) {
+        setAnimeList((prev) => prev.filter((a) => a.id !== id))
+        toast({ title: "O'chirildi", description: `"${title}" o'chirildi` })
+      } else {
+        const data = await res.json()
+        toast({ title: 'Xatolik', description: data.error || "O'chirishda xatolik", variant: 'destructive' })
+      }
+    } catch {
+      toast({ title: 'Xatolik', description: 'Internet bilan muammo', variant: 'destructive' })
+    }
   }
 
   const handleAddEpisode = async (animeId: string) => {
+    if (!epForm.videoUrl) {
+      toast({ title: 'Xatolik', description: 'Video faylni yuklang', variant: 'destructive' })
+      return
+    }
+
     setEpSubmitting(true)
     try {
-      await fetch(`/api/anime/${animeId}/episodes`, {
+      const res = await fetch(`/api/anime/${animeId}/episodes`, {
         method: 'POST',
         headers: authHeaders(),
         body: JSON.stringify(epForm),
       })
-      fetchAnime()
-      setEpForm({ number: 1, title: '', videoUrl: '' })
-    } catch { /* silent */ } finally {
+      const data = await res.json()
+
+      if (res.ok) {
+        toast({ title: 'Epizod qo\'shildi!', description: `${epForm.number}-qism muvaffaqiyatli qo'shildi` })
+        fetchAnime()
+        setEpForm({ number: epForm.number + 1, title: '', videoUrl: '' })
+      } else {
+        toast({ title: 'Xatolik', description: data.error || 'Epizod qo\'shishda xatolik', variant: 'destructive' })
+      }
+    } catch {
+      toast({ title: 'Xatolik', description: 'Internet bilan muammo', variant: 'destructive' })
+    } finally {
       setEpSubmitting(false)
     }
   }
 
-  const handleDeleteEpisode = async (animeId: string, episodeId: string) => {
+  const handleDeleteEpisode = async (animeId: string, episodeId: string, epNum: number) => {
+    if (!confirm(`${epNum}-qismni o'chirmoqchimisiz?`)) return
+
     try {
-      await fetch(`/api/anime/${animeId}/episodes/${episodeId}`, { method: 'DELETE', headers: authHeaders() })
-      fetchAnime()
-    } catch { /* silent */ }
+      const res = await fetch(`/api/anime/${animeId}/episodes/${episodeId}`, { method: 'DELETE', headers: authHeaders() })
+      if (res.ok) {
+        toast({ title: "O'chirildi", description: `${epNum}-qism o'chirildi` })
+        fetchAnime()
+      } else {
+        toast({ title: 'Xatolik', description: "O'chirishda xatolik", variant: 'destructive' })
+      }
+    } catch {
+      toast({ title: 'Xatolik', description: 'Internet bilan muammo', variant: 'destructive' })
+    }
   }
 
   if (loading) {
@@ -329,7 +440,7 @@ function AddAnimeTab({ token, authHeaders }: { token: string | null; authHeaders
             </DialogHeader>
             <div className="space-y-4 pt-2">
               <div>
-                <Label>Nomi (O&apos;zbekcha)</Label>
+                <Label>Nomi (O&apos;zbekcha) *</Label>
                 <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Anime nomi" className="mt-1 border-white/10 bg-gray-800 text-white" />
               </div>
               <div>
@@ -339,12 +450,11 @@ function AddAnimeTab({ token, authHeaders }: { token: string | null; authHeaders
 
               {/* File Upload: Logo */}
               <FileUpload
-                label="Logo rasm"
+                label="Logo rasm *"
                 accept="image/*"
                 type="anime"
                 preview={form.logo}
                 onClear={() => setForm({ ...form, logo: '' })}
-                uploading={uploadingLogo}
                 onUploaded={(url) => setForm({ ...form, logo: url })}
               />
 
@@ -355,13 +465,12 @@ function AddAnimeTab({ token, authHeaders }: { token: string | null; authHeaders
                 type="cover"
                 preview={form.cover}
                 onClear={() => setForm({ ...form, cover: '' })}
-                uploading={uploadingCover}
                 onUploaded={(url) => setForm({ ...form, cover: url })}
               />
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label>Janrlar (vergul bilan)</Label>
+                  <Label>Janrlar (vergul bilan) *</Label>
                   <Input value={form.genres} onChange={(e) => setForm({ ...form, genres: e.target.value })} placeholder="Action, Fantasy" className="mt-1 border-white/10 bg-gray-800 text-white" />
                 </div>
                 <div>
@@ -370,7 +479,7 @@ function AddAnimeTab({ token, authHeaders }: { token: string | null; authHeaders
                 </div>
               </div>
               <div>
-                <Label>Tavsif</Label>
+                <Label>Tavsif *</Label>
                 <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Anime haqida..." className="mt-1 border-white/10 bg-gray-800 text-white" rows={3} />
               </div>
 
@@ -381,7 +490,6 @@ function AddAnimeTab({ token, authHeaders }: { token: string | null; authHeaders
                 type="episode"
                 preview={form.videoUrl}
                 onClear={() => setForm({ ...form, videoUrl: '' })}
-                uploading={uploadingVideo}
                 onUploaded={(url) => setForm({ ...form, videoUrl: url })}
               />
 
@@ -389,9 +497,8 @@ function AddAnimeTab({ token, authHeaders }: { token: string | null; authHeaders
                 <Switch checked={form.isOngoing} onCheckedChange={(c) => setForm({ ...form, isOngoing: c })} />
                 <Label>Davom etmoqda</Label>
               </div>
-              <Button onClick={handleAddAnime} disabled={submitting || !form.title || !form.logo} className="w-full bg-purple-500 text-white hover:bg-purple-600">
-                {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
-                Qo&apos;shish
+              <Button onClick={handleAddAnime} disabled={submitting} className="w-full bg-purple-500 text-white hover:bg-purple-600">
+                {submitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saqlanmoqda...</> : <><Plus className="mr-2 h-4 w-4" /> Qo&apos;shish</>}
               </Button>
             </div>
           </DialogContent>
@@ -409,7 +516,7 @@ function AddAnimeTab({ token, authHeaders }: { token: string | null; authHeaders
                   <img src={anime.logo} alt={anime.title} className="h-16 w-12 shrink-0 rounded-lg object-cover" />
                   <div className="flex-1 min-w-0">
                     <h3 className="truncate font-semibold text-white">{anime.title}</h3>
-                    <p className="text-xs text-gray-500">{anime.year} • {anime.genres.split(',').slice(0, 3).join(', ')}</p>
+                    <p className="text-xs text-gray-500">{anime.year} • {anime.genres?.split(',').slice(0, 3).join(', ')}</p>
                     <div className="mt-1 flex gap-2">
                       <Badge variant="secondary" className="bg-purple-500/20 text-purple-300">
                         {anime.episodes?.length || 0} qism
@@ -427,7 +534,7 @@ function AddAnimeTab({ token, authHeaders }: { token: string | null; authHeaders
                       {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                     </button>
                     <button
-                      onClick={() => handleDeleteAnime(anime.id)}
+                      onClick={() => handleDeleteAnime(anime.id, anime.title)}
                       className="rounded-lg p-2 text-gray-400 hover:bg-red-500/10 hover:text-red-400"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -449,7 +556,7 @@ function AddAnimeTab({ token, authHeaders }: { token: string | null; authHeaders
                               <p className="text-xs text-gray-500">{ep.views} ko&apos;rildi</p>
                             </div>
                             <button
-                              onClick={() => handleDeleteEpisode(anime.id, ep.id)}
+                              onClick={() => handleDeleteEpisode(anime.id, ep.id, ep.number)}
                               className="rounded p-1 text-gray-500 hover:text-red-400"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
@@ -491,7 +598,6 @@ function AddAnimeTab({ token, authHeaders }: { token: string | null; authHeaders
                           type="episode"
                           preview={epForm.videoUrl}
                           onClear={() => setEpForm({ ...epForm, videoUrl: '' })}
-                          uploading={epUploadingVideo}
                           onUploaded={(url) => setEpForm({ ...epForm, videoUrl: url })}
                         />
                       </div>
@@ -502,8 +608,7 @@ function AddAnimeTab({ token, authHeaders }: { token: string | null; authHeaders
                         size="sm"
                         className="mt-2 bg-green-600 text-white hover:bg-green-700"
                       >
-                        {epSubmitting ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Plus className="mr-1 h-3 w-3" />}
-                        Qo&apos;shish
+                        {epSubmitting ? <><Loader2 className="mr-1 h-3 w-3 animate-spin" /> Saqlanmoqda...</> : <><Plus className="mr-1 h-3 w-3" /> Qo&apos;shish</>}
                       </Button>
                     </div>
                   </div>
@@ -524,7 +629,8 @@ function AddAnimeTab({ token, authHeaders }: { token: string | null; authHeaders
 /* ==========================================
    SCHEDULE TAB
    ========================================== */
-function ScheduleTab({ token, authHeaders }: { token: string | null; authHeaders: () => Record<string, string> }) {
+function ScheduleTab({ authHeaders }: { authHeaders: () => Record<string, string> }) {
+  const { toast } = useToast()
   const [animeList, setAnimeList] = useState<AnimeItem[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -536,37 +642,62 @@ function ScheduleTab({ token, authHeaders }: { token: string | null; authHeaders
     scheduledAt: '',
   })
 
-  useEffect(() => {
-    const fetchAnime = async () => {
-      setLoading(true)
-      try {
-        const res = await fetch('/api/admin/anime?status=scheduled', { headers: authHeaders() })
-        const data = await res.json()
-        setAnimeList(data.anime || data || [])
-      } catch {
-        setAnimeList([])
-      } finally {
-        setLoading(false)
-      }
+  const fetchScheduled = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/anime?status=scheduled', { headers: authHeaders() })
+      const data = await res.json()
+      setAnimeList(data.anime || data || [])
+    } catch {
+      setAnimeList([])
     }
-    fetchAnime()
   }, [authHeaders])
 
+  useEffect(() => {
+    setLoading(true)
+    fetchScheduled().finally(() => setLoading(false))
+  }, [fetchScheduled])
+
   const handleSchedule = async () => {
+    if (!form.title) {
+      toast({ title: 'Xatolik', description: 'Anime nomini kiriting', variant: 'destructive' })
+      return
+    }
+    if (!form.logo) {
+      toast({ title: 'Xatolik', description: 'Logo rasmni yuklang', variant: 'destructive' })
+      return
+    }
+    if (!form.scheduledAt) {
+      toast({ title: 'Xatolik', description: 'Sana va vaqtni tanlang', variant: 'destructive' })
+      return
+    }
+
     setSubmitting(true)
     try {
-      await fetch('/api/admin/anime/schedule', {
+      const res = await fetch('/api/admin/anime/schedule', {
         method: 'POST',
         headers: authHeaders(),
         body: JSON.stringify(form),
       })
-      setDialogOpen(false)
-      setForm({ title: '', titleEn: '', logo: '', cover: '', genres: '', year: '2024', description: '', videoUrl: '', scheduledAt: '' })
-      // Refetch
-      const res = await fetch('/api/admin/anime?status=scheduled', { headers: authHeaders() })
       const data = await res.json()
-      setAnimeList(data.anime || data || [])
-    } catch { /* silent */ } finally {
+
+      if (res.ok) {
+        toast({
+          title: 'Rejalashtirildi!',
+          description: `"${form.title}" muvaffaqiyatli rejalashtirildi`,
+        })
+        setDialogOpen(false)
+        setForm({ title: '', titleEn: '', logo: '', cover: '', genres: '', year: '2024', description: '', videoUrl: '', scheduledAt: '' })
+        fetchScheduled()
+      } else {
+        toast({
+          title: 'Xatolik',
+          description: data.error || 'Rejalashtirishda xatolik',
+          variant: 'destructive',
+        })
+      }
+    } catch {
+      toast({ title: 'Xatolik', description: 'Internet bilan muammo', variant: 'destructive' })
+    } finally {
       setSubmitting(false)
     }
   }
@@ -591,7 +722,7 @@ function ScheduleTab({ token, authHeaders }: { token: string | null; authHeaders
             </DialogHeader>
             <div className="space-y-4 pt-2">
               <div>
-                <Label>Nomi</Label>
+                <Label>Nomi *</Label>
                 <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Anime nomi" className="mt-1 border-white/10 bg-gray-800 text-white" />
               </div>
               <div>
@@ -599,9 +730,8 @@ function ScheduleTab({ token, authHeaders }: { token: string | null; authHeaders
                 <Input value={form.titleEn} onChange={(e) => setForm({ ...form, titleEn: e.target.value })} placeholder="English title" className="mt-1 border-white/10 bg-gray-800 text-white" />
               </div>
 
-              {/* File Upload: Logo */}
               <FileUpload
-                label="Logo rasm"
+                label="Logo rasm *"
                 accept="image/*"
                 type="anime"
                 preview={form.logo}
@@ -609,7 +739,6 @@ function ScheduleTab({ token, authHeaders }: { token: string | null; authHeaders
                 onUploaded={(url) => setForm({ ...form, logo: url })}
               />
 
-              {/* File Upload: Cover */}
               <FileUpload
                 label="Cover rasm"
                 accept="image/*"
@@ -624,7 +753,6 @@ function ScheduleTab({ token, authHeaders }: { token: string | null; authHeaders
                 <Input value={form.genres} onChange={(e) => setForm({ ...form, genres: e.target.value })} placeholder="Action, Fantasy" className="mt-1 border-white/10 bg-gray-800 text-white" />
               </div>
 
-              {/* File Upload: Video */}
               <FileUpload
                 label="Video fayl"
                 accept="video/*"
@@ -639,7 +767,7 @@ function ScheduleTab({ token, authHeaders }: { token: string | null; authHeaders
                 <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Anime haqida..." className="mt-1 border-white/10 bg-gray-800 text-white" rows={3} />
               </div>
               <div>
-                <Label>Sanalashtirish (datetime)</Label>
+                <Label>Sanalashtirish *</Label>
                 <Input
                   type="datetime-local"
                   value={form.scheduledAt}
@@ -647,9 +775,8 @@ function ScheduleTab({ token, authHeaders }: { token: string | null; authHeaders
                   className="mt-1 border-white/10 bg-gray-800 text-white"
                 />
               </div>
-              <Button onClick={handleSchedule} disabled={submitting || !form.title || !form.scheduledAt || !form.logo} className="w-full bg-purple-500 text-white hover:bg-purple-600">
-                {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Calendar className="mr-2 h-4 w-4" />}
-                Rejalashtirish
+              <Button onClick={handleSchedule} disabled={submitting} className="w-full bg-purple-500 text-white hover:bg-purple-600">
+                {submitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saqlanmoqda...</> : <><Calendar className="mr-2 h-4 w-4" /> Rejalashtirish</>}
               </Button>
             </div>
           </DialogContent>
@@ -686,7 +813,8 @@ function ScheduleTab({ token, authHeaders }: { token: string | null; authHeaders
 /* ==========================================
    USERS TAB
    ========================================== */
-function UsersTab({ token, authHeaders }: { token: string | null; authHeaders: () => Record<string, string> }) {
+function UsersTab({ authHeaders }: { authHeaders: () => Record<string, string> }) {
+  const { toast } = useToast()
   const [search, setSearch] = useState('')
   const [users, setUsers] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
@@ -728,14 +856,23 @@ function UsersTab({ token, authHeaders }: { token: string | null; authHeaders: (
   const handleGrantPremium = async () => {
     setPremiumLoading(true)
     try {
-      await fetch('/api/admin/users/premium', {
+      const res = await fetch('/api/admin/users/premium', {
         method: 'POST',
         headers: authHeaders(),
         body: JSON.stringify({ userId: premiumUserId, months: premiumMonths }),
       })
-      setPremiumOpen(false)
-      handleSearch()
-    } catch { /* silent */ } finally {
+      const data = await res.json()
+
+      if (res.ok) {
+        toast({ title: 'Premium berildi!', description: `${premiumMonths} oylik Premium muvaffaqiyatli berildi` })
+        setPremiumOpen(false)
+        handleSearch()
+      } else {
+        toast({ title: 'Xatolik', description: data.error || 'Premium berishda xatolik', variant: 'destructive' })
+      }
+    } catch {
+      toast({ title: 'Xatolik', description: 'Internet bilan muammo', variant: 'destructive' })
+    } finally {
       setPremiumLoading(false)
     }
   }
@@ -749,14 +886,23 @@ function UsersTab({ token, authHeaders }: { token: string | null; authHeaders: (
   const handleTransfer = async () => {
     setTransferLoading(true)
     try {
-      await fetch('/api/admin/users/transfer', {
+      const res = await fetch('/api/admin/users/transfer', {
         method: 'POST',
         headers: authHeaders(),
         body: JSON.stringify({ userId: transferUserId, amount: parseInt(transferAmount) || 0 }),
       })
-      setTransferOpen(false)
-      handleSearch()
-    } catch { /* silent */ } finally {
+      const data = await res.json()
+
+      if (res.ok) {
+        toast({ title: 'Pul o\'tkazildi!', description: `${parseInt(transferAmount).toLocaleString()} so'm muvaffaqiyatli o'tkazildi` })
+        setTransferOpen(false)
+        handleSearch()
+      } else {
+        toast({ title: 'Xatolik', description: data.error || "Pul o'tkazishda xatolik", variant: 'destructive' })
+      }
+    } catch {
+      toast({ title: 'Xatolik', description: 'Internet bilan muammo', variant: 'destructive' })
+    } finally {
       setTransferLoading(false)
     }
   }
@@ -814,7 +960,7 @@ function UsersTab({ token, authHeaders }: { token: string | null; authHeaders: (
                         className="border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10"
                         onClick={() => openPremium(u.userId)}
                       >
-                        <Crown className="mr-1 h-3 w-3" /> Premium berish
+                        <Crown className="mr-1 h-3 w-3" /> Premium
                       </Button>
                       <Button
                         size="sm"
@@ -822,7 +968,7 @@ function UsersTab({ token, authHeaders }: { token: string | null; authHeaders: (
                         className="border-green-500/30 text-green-400 hover:bg-green-500/10"
                         onClick={() => openTransfer(u.userId)}
                       >
-                        <Wallet className="mr-1 h-3 w-3" /> Pul o&apos;tkazish
+                        <Wallet className="mr-1 h-3 w-3" /> Pul
                       </Button>
                     </div>
                   </div>
@@ -865,7 +1011,7 @@ function UsersTab({ token, authHeaders }: { token: string | null; authHeaders: (
               </div>
             </div>
             <Button onClick={handleGrantPremium} disabled={premiumLoading} className="w-full bg-purple-500 text-white hover:bg-purple-600">
-              {premiumLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {premiumLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Tasdiqlash
             </Button>
           </div>
@@ -903,7 +1049,7 @@ function UsersTab({ token, authHeaders }: { token: string | null; authHeaders: (
 /* ==========================================
    ONGOING TAB
    ========================================== */
-function OngoingTab({ token, authHeaders }: { token: string | null; authHeaders: () => Record<string, string> }) {
+function OngoingTab({ authHeaders }: { authHeaders: () => Record<string, string> }) {
   const [animeList, setAnimeList] = useState<AnimeItem[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -938,7 +1084,7 @@ function OngoingTab({ token, authHeaders }: { token: string | null; authHeaders:
                 <img src={anime.logo} alt={anime.title} className="h-20 w-14 shrink-0 rounded-lg object-cover" />
                 <div className="flex-1 min-w-0">
                   <h3 className="truncate font-semibold text-white">{anime.title}</h3>
-                  <p className="text-xs text-gray-500">{anime.year} • {anime.genres.split(',').slice(0, 3).join(', ')}</p>
+                  <p className="text-xs text-gray-500">{anime.year} • {anime.genres?.split(',').slice(0, 3).join(', ')}</p>
                   <div className="mt-2 flex items-center gap-2">
                     <Badge variant="secondary" className="bg-purple-500/20 text-purple-300">
                       <PlayCircle className="mr-1 h-3 w-3" />
