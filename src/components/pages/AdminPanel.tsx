@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAppStore, AnimeItem, EpisodeItem } from '@/lib/store'
 import AdminSidebar from '@/components/layout/AdminSidebar'
 import { motion } from 'framer-motion'
 import {
   Plus, Trash2, Loader2, Search, Crown, Wallet, ChevronDown, ChevronUp,
-  Eye, Users, PlayCircle, DollarSign, Film, Calendar,
+  Eye, Users, PlayCircle, DollarSign, Film, Calendar, Upload, X, Image, Video,
+  CheckCircle2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -50,6 +51,114 @@ export default function AdminPanel() {
         </motion.div>
       )}
     </AdminSidebar>
+  )
+}
+
+/* ==========================================
+   FILE UPLOAD HELPER COMPONENT
+   ========================================== */
+function FileUpload({
+  label,
+  accept,
+  type,
+  onUploaded,
+  preview,
+  onClear,
+  uploading,
+}: {
+  label: string
+  accept: string
+  type: 'anime' | 'cover' | 'episode'
+  onUploaded: (url: string) => void
+  preview?: string | null
+  onClear?: () => void
+  uploading?: boolean
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('type', type)
+
+    try {
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${localStorage.getItem('sessionToken')}` },
+        body: formData,
+      })
+      const data = await res.json()
+      if (data.url) {
+        onUploaded(data.url)
+      }
+    } catch (err) {
+      console.error('Upload failed:', err)
+    }
+
+    // Reset input
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  const isImage = type === 'anime' || type === 'cover'
+
+  return (
+    <div>
+      <Label className="mb-1.5 block text-sm">{label}</Label>
+      {preview ? (
+        <div className="relative mt-1">
+          {isImage ? (
+            <div className="relative h-32 w-full overflow-hidden rounded-lg border border-white/10 bg-gray-800">
+              <img src={preview} alt="Preview" className="h-full w-full object-contain" />
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-gray-800 p-3">
+              <Video className="h-8 w-8 shrink-0 text-purple-400" />
+              <div className="flex-1 min-w-0">
+                <p className="truncate text-sm text-white">Video yuklangan</p>
+                <p className="text-xs text-gray-500">{preview}</p>
+              </div>
+            </div>
+          )}
+          {onClear && (
+            <button
+              onClick={onClear}
+              className="absolute -top-2 -right-2 rounded-full bg-red-500 p-1 text-white shadow-lg hover:bg-red-600"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          )}
+        </div>
+      ) : (
+        <div
+          onClick={() => fileInputRef.current?.click()}
+          className="mt-1 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-white/10 bg-gray-800/50 p-4 transition-colors hover:border-purple-500/50 hover:bg-gray-800"
+        >
+          {uploading ? (
+            <Loader2 className="h-6 w-6 animate-spin text-purple-400" />
+          ) : isImage ? (
+            <Image className="h-6 w-6 text-gray-500" />
+          ) : (
+            <Video className="h-6 w-6 text-gray-500" />
+          )}
+          <p className="text-sm text-gray-400">
+            {uploading ? 'Yuklanmoqda...' : 'Fayl tanlash uchun bosing'}
+          </p>
+          <p className="text-xs text-gray-600">
+            {isImage ? 'JPG, PNG, WebP, GIF' : 'MP4, WebM, OGG'} (max 100MB)
+          </p>
+        </div>
+      )}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept={accept}
+        onChange={handleUpload}
+        className="hidden"
+      />
+    </div>
   )
 }
 
@@ -127,12 +236,16 @@ function AddAnimeTab({ token, authHeaders }: { token: string | null; authHeaders
     title: '', titleEn: '', logo: '', cover: '',
     genres: '', year: '2024', description: '', isOngoing: true, videoUrl: '',
   })
+  const [uploadingLogo, setUploadingLogo] = useState(false)
+  const [uploadingCover, setUploadingCover] = useState(false)
+  const [uploadingVideo, setUploadingVideo] = useState(false)
 
   // Episode form state
   const [epForm, setEpForm] = useState({
-    number: 1, title: '', videoUrl: '', duration: 1440,
+    number: 1, title: '', videoUrl: '',
   })
   const [epSubmitting, setEpSubmitting] = useState(false)
+  const [epUploadingVideo, setEpUploadingVideo] = useState(false)
 
   const fetchAnime = useCallback(async () => {
     setLoading(true)
@@ -183,7 +296,7 @@ function AddAnimeTab({ token, authHeaders }: { token: string | null; authHeaders
         body: JSON.stringify(epForm),
       })
       fetchAnime()
-      setEpForm({ number: 1, title: '', videoUrl: '', duration: 1440 })
+      setEpForm({ number: 1, title: '', videoUrl: '' })
     } catch { /* silent */ } finally {
       setEpSubmitting(false)
     }
@@ -223,16 +336,29 @@ function AddAnimeTab({ token, authHeaders }: { token: string | null; authHeaders
                 <Label>Nomi (Inglizcha)</Label>
                 <Input value={form.titleEn} onChange={(e) => setForm({ ...form, titleEn: e.target.value })} placeholder="English title" className="mt-1 border-white/10 bg-gray-800 text-white" />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label>Logo URL</Label>
-                  <Input value={form.logo} onChange={(e) => setForm({ ...form, logo: e.target.value })} placeholder="https://..." className="mt-1 border-white/10 bg-gray-800 text-white" />
-                </div>
-                <div>
-                  <Label>Cover URL</Label>
-                  <Input value={form.cover} onChange={(e) => setForm({ ...form, cover: e.target.value })} placeholder="https://..." className="mt-1 border-white/10 bg-gray-800 text-white" />
-                </div>
-              </div>
+
+              {/* File Upload: Logo */}
+              <FileUpload
+                label="Logo rasm"
+                accept="image/*"
+                type="anime"
+                preview={form.logo}
+                onClear={() => setForm({ ...form, logo: '' })}
+                uploading={uploadingLogo}
+                onUploaded={(url) => setForm({ ...form, logo: url })}
+              />
+
+              {/* File Upload: Cover */}
+              <FileUpload
+                label="Cover rasm"
+                accept="image/*"
+                type="cover"
+                preview={form.cover}
+                onClear={() => setForm({ ...form, cover: '' })}
+                uploading={uploadingCover}
+                onUploaded={(url) => setForm({ ...form, cover: url })}
+              />
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label>Janrlar (vergul bilan)</Label>
@@ -247,15 +373,23 @@ function AddAnimeTab({ token, authHeaders }: { token: string | null; authHeaders
                 <Label>Tavsif</Label>
                 <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Anime haqida..." className="mt-1 border-white/10 bg-gray-800 text-white" rows={3} />
               </div>
-              <div>
-                <Label>Video URL (1-qism)</Label>
-                <Input value={form.videoUrl} onChange={(e) => setForm({ ...form, videoUrl: e.target.value })} placeholder="https://..." className="mt-1 border-white/10 bg-gray-800 text-white" />
-              </div>
+
+              {/* File Upload: Video (1-qism) */}
+              <FileUpload
+                label="Video (1-qism)"
+                accept="video/*"
+                type="episode"
+                preview={form.videoUrl}
+                onClear={() => setForm({ ...form, videoUrl: '' })}
+                uploading={uploadingVideo}
+                onUploaded={(url) => setForm({ ...form, videoUrl: url })}
+              />
+
               <div className="flex items-center gap-3">
                 <Switch checked={form.isOngoing} onCheckedChange={(c) => setForm({ ...form, isOngoing: c })} />
                 <Label>Davom etmoqda</Label>
               </div>
-              <Button onClick={handleAddAnime} disabled={submitting || !form.title} className="w-full bg-purple-500 text-white hover:bg-purple-600">
+              <Button onClick={handleAddAnime} disabled={submitting || !form.title || !form.logo} className="w-full bg-purple-500 text-white hover:bg-purple-600">
                 {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
                 Qo&apos;shish
               </Button>
@@ -348,15 +482,20 @@ function AddAnimeTab({ token, authHeaders }: { token: string | null; authHeaders
                           />
                         </div>
                       </div>
+
+                      {/* File Upload: Episode Video */}
                       <div className="mt-2">
-                        <Label className="text-xs">Video URL</Label>
-                        <Input
-                          value={epForm.videoUrl}
-                          onChange={(e) => setEpForm({ ...epForm, videoUrl: e.target.value })}
-                          placeholder="https://..."
-                          className="mt-0.5 border-white/10 bg-gray-800 text-white"
+                        <FileUpload
+                          label="Video fayl"
+                          accept="video/*"
+                          type="episode"
+                          preview={epForm.videoUrl}
+                          onClear={() => setEpForm({ ...epForm, videoUrl: '' })}
+                          uploading={epUploadingVideo}
+                          onUploaded={(url) => setEpForm({ ...epForm, videoUrl: url })}
                         />
                       </div>
+
                       <Button
                         onClick={() => handleAddEpisode(anime.id)}
                         disabled={epSubmitting || !epForm.videoUrl}
@@ -459,24 +598,42 @@ function ScheduleTab({ token, authHeaders }: { token: string | null; authHeaders
                 <Label>Nomi (Inglizcha)</Label>
                 <Input value={form.titleEn} onChange={(e) => setForm({ ...form, titleEn: e.target.value })} placeholder="English title" className="mt-1 border-white/10 bg-gray-800 text-white" />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label>Logo URL</Label>
-                  <Input value={form.logo} onChange={(e) => setForm({ ...form, logo: e.target.value })} placeholder="https://..." className="mt-1 border-white/10 bg-gray-800 text-white" />
-                </div>
-                <div>
-                  <Label>Cover URL</Label>
-                  <Input value={form.cover} onChange={(e) => setForm({ ...form, cover: e.target.value })} placeholder="https://..." className="mt-1 border-white/10 bg-gray-800 text-white" />
-                </div>
-              </div>
+
+              {/* File Upload: Logo */}
+              <FileUpload
+                label="Logo rasm"
+                accept="image/*"
+                type="anime"
+                preview={form.logo}
+                onClear={() => setForm({ ...form, logo: '' })}
+                onUploaded={(url) => setForm({ ...form, logo: url })}
+              />
+
+              {/* File Upload: Cover */}
+              <FileUpload
+                label="Cover rasm"
+                accept="image/*"
+                type="cover"
+                preview={form.cover}
+                onClear={() => setForm({ ...form, cover: '' })}
+                onUploaded={(url) => setForm({ ...form, cover: url })}
+              />
+
               <div>
                 <Label>Janrlar</Label>
                 <Input value={form.genres} onChange={(e) => setForm({ ...form, genres: e.target.value })} placeholder="Action, Fantasy" className="mt-1 border-white/10 bg-gray-800 text-white" />
               </div>
-              <div>
-                <Label>Video URL</Label>
-                <Input value={form.videoUrl} onChange={(e) => setForm({ ...form, videoUrl: e.target.value })} placeholder="https://..." className="mt-1 border-white/10 bg-gray-800 text-white" />
-              </div>
+
+              {/* File Upload: Video */}
+              <FileUpload
+                label="Video fayl"
+                accept="video/*"
+                type="episode"
+                preview={form.videoUrl}
+                onClear={() => setForm({ ...form, videoUrl: '' })}
+                onUploaded={(url) => setForm({ ...form, videoUrl: url })}
+              />
+
               <div>
                 <Label>Tavsif</Label>
                 <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Anime haqida..." className="mt-1 border-white/10 bg-gray-800 text-white" rows={3} />
@@ -490,7 +647,7 @@ function ScheduleTab({ token, authHeaders }: { token: string | null; authHeaders
                   className="mt-1 border-white/10 bg-gray-800 text-white"
                 />
               </div>
-              <Button onClick={handleSchedule} disabled={submitting || !form.title || !form.scheduledAt} className="w-full bg-purple-500 text-white hover:bg-purple-600">
+              <Button onClick={handleSchedule} disabled={submitting || !form.title || !form.scheduledAt || !form.logo} className="w-full bg-purple-500 text-white hover:bg-purple-600">
                 {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Calendar className="mr-2 h-4 w-4" />}
                 Rejalashtirish
               </Button>
