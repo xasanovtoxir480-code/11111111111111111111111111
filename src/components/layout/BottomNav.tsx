@@ -25,8 +25,9 @@ export default function BottomNav() {
   }
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/5 bg-gray-950/90 backdrop-blur-xl md:hidden">
-      <div className="flex items-center justify-around py-2">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-gray-950/95 backdrop-blur-xl">
+      {/* Safe area for iOS devices */}
+      <div className="mx-auto flex max-w-lg items-center justify-around px-2 pb-[env(safe-area-inset-bottom)] pt-1">
         {navItems.map((item) => {
           const Icon = item.icon
           const isActive = currentPage === item.id
@@ -34,12 +35,18 @@ export default function BottomNav() {
             <button
               key={item.id}
               onClick={() => handleNav(item.id)}
-              className={`flex flex-col items-center gap-0.5 px-3 py-1 transition-colors ${
-                isActive ? 'text-purple-400' : 'text-gray-500 hover:text-gray-300'
+              className={`flex flex-col items-center gap-0.5 rounded-xl px-4 py-2 transition-all ${
+                isActive
+                  ? 'text-purple-400'
+                  : 'text-gray-500 hover:text-gray-300 active:scale-95'
               }`}
             >
-              <Icon className="h-5 w-5" />
-              <span className="text-[10px] font-medium">{item.label}</span>
+              <div className={`rounded-lg p-1 transition-colors ${isActive ? 'bg-purple-500/15' : ''}`}>
+                <Icon className="h-5 w-5" />
+              </div>
+              <span className={`text-[10px] font-medium ${isActive ? 'text-purple-400' : 'text-gray-500'}`}>
+                {item.label}
+              </span>
             </button>
           )
         })}
