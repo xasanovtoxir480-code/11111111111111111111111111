@@ -43,7 +43,6 @@ export default function AnimeCarousel({ anime }: AnimeCarouselProps) {
     navigate('watch')
   }
 
-  // Qo'shni slaydlar uchun indekslar
   const getSlideIndex = (offset: number) => {
     return (currentIndex + offset + anime.length) % anime.length
   }
@@ -58,12 +57,10 @@ export default function AnimeCarousel({ anime }: AnimeCarouselProps) {
     >
       {/* Asosiy karusel konteyner */}
       <div className="relative w-full">
-        {/* Chap tomondagi gradient (mobilda) */}
+        {/* Desktop gradientlar */}
         <div className="pointer-events-none absolute left-0 top-0 z-10 hidden h-full w-16 bg-gradient-to-r from-gray-950 to-transparent md:block" />
-        {/* O'ng tomondagi gradient (mobilda) */}
         <div className="pointer-events-none absolute right-0 top-0 z-10 hidden h-full w-16 bg-gradient-to-l from-gray-950 to-transparent md:block" />
 
-        {/* Slaydlar - faqat desktopda ko'rinadigan qo'shni slaydlar */}
         <div className="flex items-center justify-center">
           {/* Chap slayd - faqat desktop */}
           {anime.length > 1 && (
@@ -80,7 +77,7 @@ export default function AnimeCarousel({ anime }: AnimeCarouselProps) {
             </button>
           )}
 
-          {/* Asosiy (markaziy) slayd */}
+          {/* Asosiy slayd */}
           <AnimatePresence mode="wait">
             <motion.div
               key={currentIndex}
@@ -88,49 +85,42 @@ export default function AnimeCarousel({ anime }: AnimeCarouselProps) {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.98 }}
               transition={{ duration: 0.4 }}
+              onClick={() => handleClick(anime[currentIndex])}
               className="relative w-full cursor-pointer overflow-hidden md:mx-4 md:rounded-2xl md:shadow-2xl"
             >
-              {/* Rasm konteyneri */}
-              <div className="relative aspect-video w-full overflow-hidden bg-gray-900 md:aspect-[21/9] md:h-[340px] md:w-auto lg:h-[400px]">
+              {/* Rasm */}
+              <div className="relative aspect-[3/4] w-full overflow-hidden bg-gray-900 sm:aspect-[16/9] md:aspect-[21/9] md:h-[340px] md:w-auto lg:h-[400px]">
                 <img
                   src={anime[currentIndex]?.logo || ''}
                   alt={anime[currentIndex]?.title || ''}
                   className="h-full w-full object-contain"
                 />
-                {/* Gradient overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/50 to-gray-950/10" />
-                {/* Chap gradient - text uchun */}
-                <div className="absolute inset-0 bg-gradient-to-r from-gray-950/70 via-transparent to-transparent" />
+                {/* Gradient - pastdan tepaga */}
+                <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/40 to-transparent" />
+                {/* Gradient - chapdan o'ngga (desktop) */}
+                <div className="absolute inset-0 bg-gradient-to-r from-gray-950/70 via-transparent to-transparent hidden md:block" />
               </div>
 
-              {/* Matn overlay - mobil */}
-              <div className="absolute bottom-0 left-0 right-0 p-4 md:hidden">
-                <div className="flex flex-wrap gap-2 mb-2">
-                  {(anime[currentIndex]?.genres || '').split(',').filter(Boolean).map((genre) => (
-                    <span
-                      key={genre}
-                      className="rounded-full bg-purple-500/30 px-3 py-1 text-xs font-medium text-purple-200 backdrop-blur-sm"
-                    >
-                      {genre.trim()}
-                    </span>
-                  ))}
-                </div>
-                <h2 className="text-xl font-bold text-white">
+              {/* Mobil overlay */}
+              <div className="absolute inset-0 flex flex-col justify-end p-4 md:hidden">
+                <h2 className="mb-1 text-2xl font-bold text-white drop-shadow-lg">
                   {anime[currentIndex]?.title}
                 </h2>
-                <p className="mt-1 text-sm text-gray-300">
-                  {anime[currentIndex]?.year} • {anime[currentIndex]?.isOngoing ? 'Davom etmoqda' : 'Tugallangan'}
+                <p className="mb-4 text-sm text-gray-300">
+                  {anime[currentIndex]?.year} • {(anime[currentIndex]?.genres || '').split(',').filter(Boolean).join(' • ')}
                 </p>
-                <button
-                  onClick={(e) => handleWatch(e, anime[currentIndex])}
-                  className="mt-3 inline-flex items-center gap-2 rounded-full bg-purple-500 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-purple-500/30 transition-all hover:bg-purple-400 active:scale-95"
-                >
-                  <Play className="h-4 w-4 fill-white" />
-                  Korish
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={(e) => handleWatch(e, anime[currentIndex])}
+                    className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-red-600/30 transition-all hover:bg-red-500 active:scale-95"
+                  >
+                    <Play className="h-4 w-4 fill-white" />
+                    TOMOSHA QILISH
+                  </button>
+                </div>
               </div>
 
-              {/* Matn overlay - desktop (chap tomonda) */}
+              {/* Desktop overlay */}
               <div className="absolute bottom-8 left-8 right-8 hidden md:block lg:bottom-12 lg:left-12">
                 <div className="flex flex-wrap gap-2 mb-3">
                   {(anime[currentIndex]?.genres || '').split(',').filter(Boolean).map((genre) => (
@@ -175,17 +165,35 @@ export default function AnimeCarousel({ anime }: AnimeCarouselProps) {
           )}
         </div>
 
-        {/* O'q tugmalari - desktop */}
+        {/* Chap/o'q tugmalari - mobil */}
         {anime.length > 1 && (
           <>
             <button
-              onClick={prev}
+              onClick={(e) => { e.stopPropagation(); prev() }}
+              className="absolute left-2 top-1/2 z-20 flex -translate-y-1/2 items-center justify-center rounded-full bg-white/90 p-1.5 shadow-lg transition-all hover:bg-white active:scale-90 md:hidden"
+            >
+              <ChevronLeft className="h-5 w-5 text-gray-900" />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); next() }}
+              className="absolute right-2 top-1/2 z-20 flex -translate-y-1/2 items-center justify-center rounded-full bg-white/90 p-1.5 shadow-lg transition-all hover:bg-white active:scale-90 md:hidden"
+            >
+              <ChevronRight className="h-5 w-5 text-gray-900" />
+            </button>
+          </>
+        )}
+
+        {/* Chap/o'q tugmalari - desktop */}
+        {anime.length > 1 && (
+          <>
+            <button
+              onClick={(e) => { e.stopPropagation(); prev() }}
               className="absolute left-2 top-1/2 z-20 hidden -translate-y-1/2 items-center justify-center rounded-full bg-white/10 p-2 backdrop-blur-sm transition-all hover:bg-white/20 md:flex lg:left-4"
             >
               <ChevronLeft className="h-6 w-6 text-white" />
             </button>
             <button
-              onClick={next}
+              onClick={(e) => { e.stopPropagation(); next() }}
               className="absolute right-2 top-1/2 z-20 hidden -translate-y-1/2 items-center justify-center rounded-full bg-white/10 p-2 backdrop-blur-sm transition-all hover:bg-white/20 md:flex lg:right-4"
             >
               <ChevronRight className="h-6 w-6 text-white" />
@@ -202,7 +210,7 @@ export default function AnimeCarousel({ anime }: AnimeCarouselProps) {
               key={i}
               onClick={() => setCurrentIndex(i)}
               className={`h-1.5 rounded-full transition-all ${
-                i === currentIndex ? 'w-6 bg-purple-500' : 'w-1.5 bg-white/40'
+                i === currentIndex ? 'w-6 bg-red-500' : 'w-1.5 bg-white/40'
               }`}
             />
           ))}
