@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAppStore, EpisodeItem } from '@/lib/store'
 import VideoPlayer from '@/components/anime/VideoPlayer'
 import EpisodeList from '@/components/anime/EpisodeList'
@@ -12,6 +12,8 @@ export default function WatchPage() {
   const { selectedAnime, selectedEpisode, user, setSelectedEpisode, goBack } = useAppStore()
   const [episodes, setEpisodes] = useState<EpisodeItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const hasFetched = useRef(false)
 
   useEffect(() => {
     if (!selectedAnime) {
@@ -19,13 +21,22 @@ export default function WatchPage() {
       return
     }
 
+    if (hasFetched.current && episodes.length > 0) return
+    hasFetched.current = true
+
     const fetchEpisodes = async () => {
       setLoading(true)
+      setError(null)
       try {
         const res = await fetch(`/api/anime/${selectedAnime.id}/episodes`)
+        if (!res.ok) {
+          setError('Epizodlarni yuklashda xatolik')
+          return
+        }
         const data = await res.json()
         setEpisodes(data.episodes || data || [])
       } catch {
+        setError('Internet bilan muammo')
         setEpisodes([])
       } finally {
         setLoading(false)
@@ -33,7 +44,7 @@ export default function WatchPage() {
     }
 
     fetchEpisodes()
-  }, [selectedAnime, goBack])
+  }, [selectedAnime?.id])
 
   if (loading) {
     return (
@@ -44,6 +55,20 @@ export default function WatchPage() {
   }
 
   if (!selectedAnime) return null
+
+  if (error) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-gray-950 px-4">
+        <p className="text-center text-sm text-gray-400">{error}</p>
+        <button
+          onClick={goBack}
+          className="rounded-lg bg-purple-500 px-6 py-2.5 text-sm font-semibold text-white transition-all hover:bg-purple-400 active:scale-95"
+        >
+          Orqaga qaytish
+        </button>
+      </div>
+    )
+  }
 
   const currentEpisode = episodes.find((ep) => ep.number === selectedEpisode)
   const isPremium = user?.isPremium || false

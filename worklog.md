@@ -42,3 +42,24 @@ Stage Summary:
 - Fixed CommentSection.tsx submit button - added proper token validation and error feedback
 - Key changes: disabled prop now includes !token, error messages shown to user, console logging added
 - File: /home/z/my-project/src/components/anime/CommentSection.tsx
+---
+Task ID: 2
+Agent: Main Agent
+Task: Fix anime detail page not loading - showing only comments with server error
+
+Work Log:
+- Analyzed screenshot showing broken anime detail page
+- Found root cause: useEffect dependency array included `favorites` which caused infinite re-fetching
+- AnimeDetailPage: removed `favorites` and `goBack` from useEffect deps, added `selectedAnime?.id` instead
+- Added `hasFetched` ref to prevent duplicate fetches
+- Added `error` state with proper error display UI (error message + "Orqaga qaytish" button)
+- Added `res.ok` check before using API response data
+- Fixed WatchPage with same pattern: removed `selectedAnime` object dep, used `selectedAnime?.id`
+- Added error handling UI to WatchPage as well
+- Build verified successful
+
+Stage Summary:
+- AnimeDetailPage and WatchPage now properly handle API errors with visible error UI
+- Fixed infinite re-fetching caused by `favorites` in useEffect dependency array
+- Users see "Orqaga qaytish" button when anime/episodes fail to load instead of blank screen
+- Files modified: AnimeDetailPage.tsx, WatchPage.tsx

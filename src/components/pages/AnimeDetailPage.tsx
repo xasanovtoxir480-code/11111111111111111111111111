@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAppStore, AnimeItem, EpisodeItem } from '@/lib/store'
 import EpisodeList from '@/components/anime/EpisodeList'
 import CommentSection from '@/components/anime/CommentSection'
@@ -14,7 +14,9 @@ export default function AnimeDetailPage() {
   const [anime, setAnime] = useState<AnimeItem | null>(null)
   const [episodes, setEpisodes] = useState<EpisodeItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [isFav, setIsFav] = useState(false)
+  const hasFetched = useRef(false)
 
   useEffect(() => {
     if (!selectedAnime) {
@@ -22,20 +24,33 @@ export default function AnimeDetailPage() {
       return
     }
 
+    // Faqat bir marta fetch qilish (favorites o'zgarganda qayta fetch qilinmasin)
+    if (hasFetched.current && anime && anime.id === selectedAnime.id) return
+    hasFetched.current = true
+
     const fetchAnime = async () => {
       setLoading(true)
+      setError(null)
       try {
         const headers: Record<string, string> = {}
         if (token) headers['Authorization'] = `Bearer ${token}`
 
         const res = await fetch(`/api/anime/${selectedAnime.id}`, { headers })
         const data = await res.json()
+
+        if (!res.ok) {
+          setError(data.error || 'Anime topilmadi')
+          setAnime(null)
+          return
+        }
+
         const animeData = data.anime || data
         setAnime(animeData)
         setEpisodes(animeData.episodes || [])
         setIsFav(favorites.includes(animeData.id))
       } catch (err) {
         console.error('Failed to fetch anime:', err)
+        setError('Internet bilan muammo')
       } finally {
         setLoading(false)
       }
@@ -45,7 +60,7 @@ export default function AnimeDetailPage() {
 
     // Increment views
     fetch(`/api/anime/${selectedAnime.id}/view`, { method: 'POST' }).catch(() => {})
-  }, [selectedAnime, token, favorites, goBack])
+  }, [selectedAnime?.id, token])
 
   const handleFavorite = async () => {
     if (!token || !anime) return
@@ -92,7 +107,21 @@ export default function AnimeDetailPage() {
     )
   }
 
-  if (!anime) return null
+  if (!anime || error) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-gray-950 px-4">
+        <p className="text-center text-sm text-gray-400">
+          {error || 'Anime topilmadi'}
+        </p>
+        <button
+          onClick={goBack}
+          className="rounded-lg bg-purple-500 px-6 py-2.5 text-sm font-semibold text-white transition-all hover:bg-purple-400 active:scale-95"
+        >
+          Orqaga qaytish
+        </button>
+      </div>
+    )
+  }
 
   const isPremium = user?.isPremium || false
 
