@@ -25,7 +25,7 @@ import {
 import { Label } from '@/components/ui/label'
 import { useToast } from '@/hooks/use-toast'
 
-type AdminTab = 'stats' | 'add-anime' | 'schedule' | 'users' | 'ongoing'
+type AdminTab = 'stats' | 'add-anime' | 'schedule' | 'users'
 
 export default function AdminPanel() {
   const { token } = useAppStore()
@@ -48,7 +48,6 @@ export default function AdminPanel() {
           {activeTab === 'add-anime' && <AddAnimeTab authHeaders={authHeaders} />}
           {activeTab === 'schedule' && <ScheduleTab authHeaders={authHeaders} />}
           {activeTab === 'users' && <UsersTab authHeaders={authHeaders} />}
-          {activeTab === 'ongoing' && <OngoingTab authHeaders={authHeaders} />}
         </motion.div>
       )}
     </AdminSidebar>

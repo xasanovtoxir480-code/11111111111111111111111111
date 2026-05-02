@@ -2,17 +2,16 @@
 
 import { useState } from 'react'
 import { useAppStore } from '@/lib/store'
-import { BarChart3, Plus, Calendar, Users, Play, ArrowLeft } from 'lucide-react'
+import { BarChart3, Plus, Calendar, Users, ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
-type AdminTab = 'stats' | 'add-anime' | 'schedule' | 'users' | 'ongoing'
+type AdminTab = 'stats' | 'add-anime' | 'schedule' | 'users'
 
 const tabs: { id: AdminTab; label: string; icon: any }[] = [
   { id: 'stats', label: 'Statistika', icon: BarChart3 },
   { id: 'add-anime', label: 'Anime qo\'shish', icon: Plus },
   { id: 'schedule', label: 'Rejalashtirish', icon: Calendar },
   { id: 'users', label: 'Foydalanuvchilar', icon: Users },
-  { id: 'ongoing', label: 'Davom etayotgan', icon: Play },
 ]
 
 export default function AdminSidebar({ children }: { children: (tab: AdminTab) => React.ReactNode }) {
