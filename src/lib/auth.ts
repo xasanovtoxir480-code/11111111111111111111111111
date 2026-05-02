@@ -15,7 +15,7 @@ export function generateUserId(): string {
 
 export async function getUserFromToken(token: string) {
   if (!token) return null
-  const user = await db.user.findUnique({
+  const user = await db.user.findFirst({
     where: { sessionToken: token },
   })
   return user

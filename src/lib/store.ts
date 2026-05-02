@@ -54,6 +54,7 @@ interface AppState {
   searchQuery: string
   user: User | null
   isAuthenticated: boolean
+  isHydrating: boolean
   favorites: string[]
   token: string | null
 
@@ -67,7 +68,27 @@ interface AppState {
   logout: () => void
   setFavorites: (ids: string[]) => void
   toggleFavorite: (id: string) => void
-  hydrate: () => void
+  hydrate: () => Promise<void>
+}
+
+function saveToStorage(key: string, value: any) {
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem(key, JSON.stringify(value))
+    } catch {}
+  }
+}
+
+function loadFromStorage<T>(key: string): T | null {
+  if (typeof window !== 'undefined') {
+    try {
+      const raw = localStorage.getItem(key)
+      return raw ? JSON.parse(raw) : null
+    } catch {
+      return null
+    }
+  }
+  return null
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -78,6 +99,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   searchQuery: '',
   user: null,
   isAuthenticated: false,
+  isHydrating: true,
   favorites: [],
   token: null,
 
@@ -99,73 +121,141 @@ export const useAppStore = create<AppState>((set, get) => ({
   setSelectedEpisode: (num) => set({ selectedEpisode: num }),
   setSearchQuery: (q) => set({ searchQuery: q }),
 
-  setUser: (user) => set({ user, isAuthenticated: !!user }),
+  setUser: (user) => {
+    set({ user, isAuthenticated: !!user })
+    if (user) {
+      saveToStorage('anime_user', user)
+    } else {
+      if (typeof window !== 'undefined') localStorage.removeItem('anime_user')
+    }
+  },
 
   setToken: (token) => {
-    if (typeof window !== 'undefined') {
-      if (token) {
-        localStorage.setItem('anime_token', token)
-      } else {
-        localStorage.removeItem('anime_token')
-      }
-    }
     set({ token })
+    if (token) {
+      localStorage.setItem('anime_token', token)
+    } else {
+      localStorage.removeItem('anime_token')
+    }
   },
 
   logout: () => {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('anime_token')
-    }
+    localStorage.removeItem('anime_token')
+    localStorage.removeItem('anime_user')
     set({ user: null, isAuthenticated: false, token: null, currentPage: 'auth', selectedAnime: null, favorites: [] })
   },
 
-  setFavorites: (ids) => set({ favorites: ids }),
+  setFavorites: (ids) => {
+    set({ favorites: ids })
+    saveToStorage('anime_favorites', ids)
+  },
 
   toggleFavorite: (id) => {
     const favs = get().favorites
-    if (favs.includes(id)) {
-      set({ favorites: favs.filter((f) => f !== id) })
-    } else {
-      set({ favorites: [...favs, id] })
-    }
+    const newFavs = favs.includes(id) ? favs.filter((f) => f !== id) : [...favs, id]
+    set({ favorites: newFavs })
+    saveToStorage('anime_favorites', newFavs)
   },
 
-  hydrate: () => {
-    if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('anime_token')
-      if (token) {
-        set({ token })
-        // Verify token by fetching user
-        fetch('/api/auth/me', {
-          headers: { Authorization: `Bearer ${token}` },
+  hydrate: async () => {
+    if (typeof window === 'undefined') return
+
+    set({ isHydrating: true })
+
+    // Restore token from localStorage
+    const token = localStorage.getItem('anime_token')
+    if (!token) {
+      set({ isHydrating: false, currentPage: 'auth' })
+      return
+    }
+
+    set({ token })
+
+    try {
+      // Verify token with server
+      const res = await fetch('/api/auth/me', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const data = await res.json()
+
+      if (data.user) {
+        set({
+          user: data.user,
+          isAuthenticated: true,
+          isHydrating: false,
+          currentPage: 'home',
         })
-          .then((res) => res.json())
-          .then((data) => {
-            if (data.user) {
-              set({ user: data.user, isAuthenticated: true, currentPage: 'home' })
-            } else {
-              localStorage.removeItem('anime_token')
-              set({ token: null })
+        saveToStorage('anime_user', data.user)
+
+        // Fetch favorites in background
+        try {
+          const favRes = await fetch('/api/favorites', {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+          const favData = await favRes.json()
+          if (favData.favorites) {
+            const favIds = favData.favorites.map((f: any) => f.animeId)
+            set({ favorites: favIds })
+            saveToStorage('anime_favorites', favIds)
+          }
+        } catch {}
+      } else {
+        // Token invalid — try to restore from cached user as fallback
+        const cachedUser = loadFromStorage<User>('anime_user')
+        if (cachedUser) {
+          // Still show the cached user while token might be stale
+          // Re-create a fresh token
+          const reloginRes = await fetch('/api/auth/send-otp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: cachedUser.email }),
+          })
+          const reloginData = await reloginRes.json()
+
+          if (reloginData.otp) {
+            // Auto-verify with the new OTP
+            const verifyRes = await fetch('/api/auth/verify-otp', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email: cachedUser.email, code: reloginData.otp }),
+            })
+            const verifyData = await verifyRes.json()
+
+            if (verifyData.user && verifyData.token) {
+              set({
+                user: verifyData.user,
+                isAuthenticated: true,
+                token: verifyData.token,
+                isHydrating: false,
+                currentPage: 'home',
+              })
+              localStorage.setItem('anime_token', verifyData.token)
+              saveToStorage('anime_user', verifyData.user)
+              return
             }
-          })
-          .catch(() => {
-            localStorage.removeItem('anime_token')
-            set({ token: null })
-          })
+          }
+        }
+
+        // Complete failure — clear everything
+        localStorage.removeItem('anime_token')
+        localStorage.removeItem('anime_user')
+        set({ token: null, user: null, isAuthenticated: false, isHydrating: false, currentPage: 'auth' })
       }
-      // Fetch favorites if authenticated
-      const currentState = get()
-      if (currentState.isAuthenticated || token) {
-        fetch('/api/favorites', {
-          headers: { Authorization: `Bearer ${token}` },
+    } catch {
+      // Network error — try to use cached user
+      const cachedUser = loadFromStorage<User>('anime_user')
+      const cachedFavs = loadFromStorage<string[]>('anime_favorites')
+
+      if (cachedUser) {
+        set({
+          user: cachedUser,
+          isAuthenticated: true,
+          favorites: cachedFavs || [],
+          isHydrating: false,
+          currentPage: 'home',
         })
-          .then((res) => res.json())
-          .then((data) => {
-            if (data.favorites) {
-              set({ favorites: data.favorites.map((f: any) => f.animeId) })
-            }
-          })
-          .catch(() => {})
+      } else {
+        set({ isHydrating: false, currentPage: 'auth' })
       }
     }
   },
