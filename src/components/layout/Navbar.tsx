@@ -1,8 +1,9 @@
 'use client'
 
 import { useAppStore } from '@/lib/store'
-import { Shield } from 'lucide-react'
+import { Shield, Settings } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { useRouter } from 'next/navigation'
 
 export default function Navbar() {
   const { currentPage, navigate, user, isAuthenticated } = useAppStore()
@@ -26,10 +27,10 @@ export default function Navbar() {
               variant="ghost"
               size="sm"
               onClick={() => navigate('admin')}
-              className={currentPage === 'admin' ? 'text-purple-400' : 'text-gray-400 hover:text-white'}
+              className={`flex items-center gap-1.5 ${currentPage === 'admin' ? 'bg-purple-500/15 text-purple-400' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}
             >
-              <Shield className="mr-1 h-4 w-4" />
-              <span className="hidden sm:inline">Admin</span>
+              <Shield className="h-4 w-4" />
+              <span className="hidden sm:inline">Admin Panel</span>
             </Button>
           )}
         </div>
