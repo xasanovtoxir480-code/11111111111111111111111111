@@ -11,17 +11,39 @@ interface AnimeCardProps {
 }
 
 export default function AnimeCard({ anime, showHeart = true, index = 0 }: AnimeCardProps) {
-  const { navigate, setSelectedAnime, isAuthenticated, favorites, toggleFavorite } = useAppStore()
+  const { navigate, setSelectedAnime, isAuthenticated, favorites, token } = useAppStore()
 
   const handleClick = () => {
     setSelectedAnime(anime)
     navigate('anime-detail')
   }
 
-  const handleFavorite = (e: React.MouseEvent) => {
+  const handleFavorite = async (e: React.MouseEvent) => {
     e.stopPropagation()
-    if (!isAuthenticated) return
-    toggleFavorite(anime.id)
+    if (!isAuthenticated || !token) return
+
+    const isFav = favorites.includes(anime.id)
+
+    try {
+      if (isFav) {
+        // Remove from favorites
+        await fetch(`/api/favorites/${anime.id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        useAppStore.setState((s) => ({ favorites: s.favorites.filter((id) => id !== anime.id) }))
+      } else {
+        // Add to favorites
+        await fetch('/api/favorites', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ animeId: anime.id }),
+        })
+        useAppStore.setState((s) => ({ favorites: [...s.favorites, anime.id] }))
+      }
+    } catch (err) {
+      console.error('Favorite toggle error:', err)
+    }
   }
 
   const isFav = favorites.includes(anime.id)
@@ -41,6 +63,9 @@ export default function AnimeCard({ anime, showHeart = true, index = 0 }: AnimeC
           alt={anime.title}
           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
           loading="lazy"
+          onError={(e) => {
+            ;(e.target as HTMLImageElement).src = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="300" height="400" fill="%23111"><rect width="300" height="400"/><text x="150" y="200" text-anchor="middle" fill="%23444" font-size="14">No Image</text></svg>')
+          }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-transparent" />
 
@@ -55,10 +80,10 @@ export default function AnimeCard({ anime, showHeart = true, index = 0 }: AnimeC
         {showHeart && (
           <button
             onClick={handleFavorite}
-            className="absolute right-2 top-2 rounded-full bg-black/50 p-2 backdrop-blur-sm transition-colors hover:bg-purple-500/50"
+            className="absolute right-2 top-2 z-10 rounded-full bg-black/50 p-2 backdrop-blur-sm transition-all hover:bg-purple-500/50 active:scale-90"
           >
             <Heart
-              className={`h-4 w-4 ${isFav ? 'fill-red-500 text-red-500' : 'text-white'}`}
+              className={`h-4 w-4 transition-colors ${isFav ? 'fill-red-500 text-red-500' : 'text-white'}`}
             />
           </button>
         )}

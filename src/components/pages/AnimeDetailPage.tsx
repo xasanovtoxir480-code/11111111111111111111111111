@@ -54,14 +54,21 @@ export default function AnimeDetailPage() {
     toggleFavorite(anime.id)
 
     try {
-      await fetch('/api/favorites', {
-        method: wasFav ? 'DELETE' : 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ animeId: anime.id }),
-      })
+      if (wasFav) {
+        await fetch(`/api/favorites/${anime.id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        })
+      } else {
+        await fetch('/api/favorites', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ animeId: anime.id }),
+        })
+      }
     } catch {
       // Revert on error
       setIsFav(wasFav)
