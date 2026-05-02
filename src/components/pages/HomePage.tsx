@@ -62,17 +62,17 @@ export default function HomePage() {
       exit={{ opacity: 0 }}
       className="min-h-screen bg-gray-950"
     >
-      {/* Hero Carousel - full width */}
-        {topAnime.length > 0 && (
-          <motion.section
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="mb-8 px-3 pt-3 md:px-6 md:pt-4"
-          >
-            <AnimeCarousel anime={topAnime} />
-          </motion.section>
-        )}
+      {/* Hero Carousel - to'liq kenglik */}
+      {topAnime.length > 0 && (
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="-m-0 mb-8 overflow-hidden"
+        >
+          <AnimeCarousel anime={topAnime} />
+        </motion.section>
+      )}
 
       <div className="mx-auto max-w-7xl px-4 pb-24 md:px-6">
 
