@@ -16,10 +16,10 @@ export async function GET(request: NextRequest) {
       where: {
         status: 'published',
         OR: [
-          { title: { contains: q, mode: 'insensitive' } },
-          { titleEn: { contains: q, mode: 'insensitive' } },
-          { description: { contains: q, mode: 'insensitive' } },
-          { genres: { contains: q, mode: 'insensitive' } },
+          { title: { contains: q } },
+          { titleEn: { contains: q } },
+          { description: { contains: q } },
+          { genres: { contains: q } },
         ],
       },
       orderBy: { views: 'desc' },
