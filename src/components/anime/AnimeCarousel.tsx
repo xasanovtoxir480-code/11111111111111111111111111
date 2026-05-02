@@ -2,8 +2,6 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAppStore, AnimeItem } from '@/lib/store'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import { motion, AnimatePresence } from 'framer-motion'
 
 interface AnimeCarouselProps {
@@ -78,37 +76,17 @@ export default function AnimeCarousel({ anime }: AnimeCarouselProps) {
       </AnimatePresence>
 
       {anime.length > 1 && (
-        <>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={prev}
-            className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/40 text-white backdrop-blur-sm hover:bg-purple-500/50"
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={next}
-            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/40 text-white backdrop-blur-sm hover:bg-purple-500/50"
-          >
-            <ChevronRight className="h-5 w-5" />
-          </Button>
-
-          {/* Dots */}
-          <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 gap-1.5 md:bottom-4">
-            {anime.map((_, i) => (
-              <button
-                key={i}
-                onClick={() => setCurrentIndex(i)}
-                className={`h-1.5 rounded-full transition-all ${
-                  i === currentIndex ? 'w-6 bg-purple-500' : 'w-1.5 bg-white/40'
-                }`}
-              />
-            ))}
-          </div>
-        </>
+        <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 gap-1.5 md:bottom-4">
+          {anime.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setCurrentIndex(i)}
+              className={`h-1.5 rounded-full transition-all ${
+                i === currentIndex ? 'w-6 bg-purple-500' : 'w-1.5 bg-white/40'
+              }`}
+            />
+          ))}
+        </div>
       )}
     </div>
   )
