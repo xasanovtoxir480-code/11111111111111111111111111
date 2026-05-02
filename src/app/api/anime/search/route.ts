@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { publishDueScheduledAnime } from '@/lib/scheduler'
 
 export async function GET(request: NextRequest) {
   try {
+    await publishDueScheduledAnime()
     const { searchParams } = new URL(request.url)
     const q = searchParams.get('q') || ''
 
-    if (!q || q.length < 1) {
+    if (!q || q.length < 2) {
       return NextResponse.json({ anime: [] })
     }
 
@@ -21,6 +23,7 @@ export async function GET(request: NextRequest) {
         ],
       },
       orderBy: { views: 'desc' },
+      take: 30,
     })
 
     return NextResponse.json({ anime })

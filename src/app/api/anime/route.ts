@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getUserFromRequest } from '@/lib/auth'
+import { publishDueScheduledAnime } from '@/lib/scheduler'
 
 export async function GET(request: NextRequest) {
   try {
+    // Rejalashtirilgan vaqti kelgan animelarni avtomatik chop etish
+    await publishDueScheduledAnime()
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status') || 'all'
     const genre = searchParams.get('genre')
