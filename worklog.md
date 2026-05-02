@@ -21,3 +21,24 @@ Stage Summary:
 - Dark theme with purple accents throughout
 - Demo admin: admin@animeuz.com with token: admin-demo-token
 - 11 anime seeded with cover images from MyAnimeList CDN
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix comment submit button not working in anime detail page
+
+Work Log:
+- Read CommentSection.tsx, found that handleSubmit checked !token but button's disabled prop did not include !token - causing silent failure
+- Found that error handling was empty (catch blocks were silent), so users couldn't see what went wrong
+- Added !token to button's disabled prop so it correctly shows disabled state
+- Added error state (useState) with visual feedback showing red error messages
+- Added type="button" to prevent potential form submission issues
+- Added console.error logging for debugging
+- Added auto-clear for error messages after 5 seconds
+- Added motion animation to error display
+- Ran prisma db push to ensure Comment table exists
+- Build verified successful
+
+Stage Summary:
+- Fixed CommentSection.tsx submit button - added proper token validation and error feedback
+- Key changes: disabled prop now includes !token, error messages shown to user, console logging added
+- File: /home/z/my-project/src/components/anime/CommentSection.tsx

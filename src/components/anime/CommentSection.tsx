@@ -27,6 +27,7 @@ export default function CommentSection({ animeId }: CommentSectionProps) {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const fetchComments = async () => {
@@ -46,8 +47,13 @@ export default function CommentSection({ animeId }: CommentSectionProps) {
   }, [animeId])
 
   const handleSubmit = async () => {
-    if (!newComment.trim() || !token) return
+    if (!newComment.trim()) return
+    if (!token) {
+      setError('Tizimga kiring')
+      return
+    }
 
+    setError(null)
     setSubmitting(true)
     try {
       const res = await fetch(`/api/anime/${animeId}/comments`, {
@@ -67,13 +73,24 @@ export default function CommentSection({ animeId }: CommentSectionProps) {
         if (textareaRef.current) {
           textareaRef.current.style.height = 'auto'
         }
+      } else {
+        setError(data.error || 'Xatolik yuz berdi')
       }
-    } catch {
-      // error
+    } catch (err) {
+      console.error('Comment submit error:', err)
+      setError('Internet bilan muammo')
     } finally {
       setSubmitting(false)
     }
   }
+
+  // Xatolik xabarini 5 soniyadan keyin o'chirish
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => setError(null), 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [error])
 
   const handleDelete = async (commentId: string) => {
     if (!token) return
@@ -174,8 +191,9 @@ export default function CommentSection({ animeId }: CommentSectionProps) {
                   {newComment.length}/500
                 </span>
                 <button
+                  type="button"
                   onClick={handleSubmit}
-                  disabled={!newComment.trim() || submitting}
+                  disabled={!newComment.trim() || submitting || !token}
                   className="flex items-center gap-1.5 rounded-lg bg-purple-500 px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-purple-400 disabled:cursor-not-allowed disabled:opacity-40 active:scale-95"
                 >
                   {submitting ? (
@@ -186,6 +204,15 @@ export default function CommentSection({ animeId }: CommentSectionProps) {
                   Yuborish
                 </button>
               </div>
+              {error && (
+                <motion.p
+                  initial={{ opacity: 0, y: -5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mt-2 text-xs text-red-400"
+                >
+                  {error}
+                </motion.p>
+              )}
             </div>
           </div>
         </div>
