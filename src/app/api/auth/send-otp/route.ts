@@ -14,17 +14,17 @@ export async function POST(request: NextRequest) {
     let user = await db.user.findUnique({ where: { email } })
 
     if (!user) {
-      const userId = generateUserId()
+      let userId = generateUserId()
       // Ensure unique userId
       let existing = await db.user.findUnique({ where: { userId } })
       while (existing) {
-        userId = generateUserId() as any
-        existing = await db.user.findUnique({ where: { userId: userId as string } })
+        userId = generateUserId()
+        existing = await db.user.findUnique({ where: { userId } })
       }
       user = await db.user.create({
         data: {
           email,
-          userId: userId as unknown as string,
+          userId,
           name: email.split('@')[0],
         },
       })
