@@ -72,6 +72,18 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    // If videoUrl is provided, auto-create the first episode
+    if (videoUrl) {
+      await db.episode.create({
+        data: {
+          animeId: anime.id,
+          number: 1,
+          title: '1-qism',
+          videoUrl,
+        },
+      })
+    }
+
     return NextResponse.json({ anime }, { status: 201 })
   } catch (error) {
     console.error('Create anime error:', error)

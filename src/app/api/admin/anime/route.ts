@@ -12,7 +12,8 @@ export async function GET() {
     const anime = await db.anime.findMany({
       orderBy: { createdAt: 'desc' },
       include: {
-        _count: { select: { episodes: true, favorites: true } },
+        episodes: { orderBy: { number: 'asc' } },
+        _count: { select: { favorites: true } },
       },
     })
 

@@ -186,9 +186,9 @@ export default function AnimeDetailPage() {
 
           {/* Genres */}
           <div className="flex flex-wrap gap-2">
-            {anime.genres.split(',').map((genre) => (
+            {(anime.genres || '').split(',').filter(Boolean).map((genre) => (
               <Badge
-                key={genre}
+                key={genre.trim()}
                 variant="secondary"
                 className="bg-purple-500/20 text-purple-300 hover:bg-purple-500/30"
               >

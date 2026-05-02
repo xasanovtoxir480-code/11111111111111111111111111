@@ -24,7 +24,7 @@ export async function GET(
     const authHeader = request.headers.get('authorization')
     if (authHeader?.startsWith('Bearer ')) {
       const token = authHeader.substring(7)
-      const user = await db.user.findUnique({ where: { sessionToken: token } })
+      const user = await db.user.findFirst({ where: { sessionToken: token } })
       if (user) {
         const fav = await db.favorite.findUnique({
           where: { userId_animeId: { userId: user.id, animeId: id } },
