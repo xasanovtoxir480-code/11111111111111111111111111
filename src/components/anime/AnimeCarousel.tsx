@@ -54,14 +54,14 @@ export default function AnimeCarousel({ anime }: AnimeCarouselProps) {
           exit={{ opacity: 0, x: -100 }}
           transition={{ duration: 0.5 }}
           onClick={() => handleClick(anime[currentIndex])}
-          className="relative aspect-video w-full cursor-pointer overflow-hidden rounded-2xl sm:aspect-[16/8] md:aspect-[21/9]"
+          className="relative aspect-video w-full cursor-pointer overflow-hidden rounded-2xl bg-gray-900 sm:aspect-[16/8] md:aspect-[21/9]"
         >
           <img
             src={anime[currentIndex]?.logo || ''}
             alt={anime[currentIndex]?.title || ''}
-            className="h-full w-full object-cover"
+            className="h-full w-full object-contain"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/40 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/50 to-gray-950/20" />
           <div className="absolute bottom-0 left-0 right-0 p-4 md:p-8">
             <div className="flex flex-wrap gap-2 mb-2">
               {(anime[currentIndex]?.genres || '').split(',').filter(Boolean).map((genre) => (
