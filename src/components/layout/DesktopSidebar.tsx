@@ -3,15 +3,14 @@
 import { useAppStore } from '@/lib/store'
 import { Home, Search, Grid3X3, Heart, User, Shield } from 'lucide-react'
 
-export default function BottomNav() {
+export default function DesktopSidebar() {
   const { currentPage, navigate, isAuthenticated, user } = useAppStore()
 
-  if (currentPage === 'auth' || currentPage === 'watch') return null
+  if (currentPage === 'auth' || currentPage === 'watch' || currentPage === 'admin') return null
 
   const isAdmin = isAuthenticated && user?.isAdmin
   const showAdmin = currentPage !== 'admin'
 
-  // Build nav items dynamically - include admin for admin users
   const navItems = isAdmin && showAdmin ? [
     { id: 'home' as const, icon: Home, label: 'Bosh sahifa' },
     { id: 'search' as const, icon: Search, label: 'Qidirish' },
@@ -36,8 +35,8 @@ export default function BottomNav() {
   }
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-gray-950/95 backdrop-blur-xl md:hidden">
-      <div className="mx-auto flex max-w-lg items-center justify-around px-1 pb-[env(safe-area-inset-bottom)] pt-1">
+    <aside className="hidden md:flex md:fixed md:left-0 md:top-14 md:z-40 md:h-[calc(100vh-3.5rem)] md:w-56 md:flex-col md:border-r md:border-white/5 md:bg-gray-950">
+      <nav className="flex flex-1 flex-col gap-1 p-3">
         {navItems.map((item) => {
           const Icon = item.icon
           const isActive = currentPage === item.id
@@ -46,22 +45,33 @@ export default function BottomNav() {
             <button
               key={item.id}
               onClick={() => handleNav(item.id)}
-              className={`flex flex-col items-center gap-0.5 rounded-xl px-2.5 py-2 transition-all ${
+              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${
                 isActive
-                  ? isItemAdmin ? 'text-amber-400' : 'text-purple-400'
-                  : isItemAdmin ? 'text-gray-500 hover:text-amber-300' : 'text-gray-500 hover:text-gray-300 active:scale-95'
+                  ? isItemAdmin
+                    ? 'bg-amber-500/15 text-amber-400'
+                    : 'bg-purple-500/15 text-purple-400'
+                  : isItemAdmin
+                    ? 'text-gray-500 hover:bg-amber-500/5 hover:text-amber-300'
+                    : 'text-gray-400 hover:bg-white/5 hover:text-gray-200'
               }`}
             >
-              <div className={`rounded-lg p-1 transition-colors ${isActive ? (isItemAdmin ? 'bg-amber-500/15' : 'bg-purple-500/15') : ''}`}>
-                <Icon className="h-5 w-5" />
+              <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
+                isActive
+                  ? isItemAdmin ? 'bg-amber-500/20' : 'bg-purple-500/20'
+                  : ''
+              }`}>
+                <Icon className="h-4 w-4" />
               </div>
-              <span className={`text-[10px] font-medium ${isActive ? (isItemAdmin ? 'text-amber-400' : 'text-purple-400') : 'text-gray-500'}`}>
-                {item.label}
-              </span>
+              <span>{item.label}</span>
+              {isActive && (
+                <div className={`ml-auto h-1.5 w-1.5 rounded-full ${
+                  isItemAdmin ? 'bg-amber-400' : 'bg-purple-400'
+                }`} />
+              )}
             </button>
           )
         })}
-      </div>
-    </nav>
+      </nav>
+    </aside>
   )
 }

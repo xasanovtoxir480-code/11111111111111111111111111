@@ -14,6 +14,7 @@ import ProfilePage from '@/components/pages/ProfilePage'
 import AdminPanel from '@/components/pages/AdminPanel'
 import Navbar from '@/components/layout/Navbar'
 import BottomNav from '@/components/layout/BottomNav'
+import DesktopSidebar from '@/components/layout/DesktopSidebar'
 
 function LoadingScreen() {
   return (
@@ -39,6 +40,7 @@ export default function Home() {
 
   const showNav = currentPage !== 'auth' && currentPage !== 'watch'
   const showBottomNav = currentPage !== 'auth' && currentPage !== 'watch' && currentPage !== 'admin'
+  const showDesktopSidebar = currentPage !== 'auth' && currentPage !== 'watch' && currentPage !== 'admin'
 
   // Show loading while hydrating (checking session on page reload)
   if (isHydrating) {
@@ -48,17 +50,20 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gray-950">
       {showNav && <Navbar />}
-      <AnimatePresence mode="wait">
-        {currentPage === 'auth' && <AuthPage key="auth" />}
-        {currentPage === 'home' && <HomePage key="home" />}
-        {currentPage === 'search' && <SearchPage key="search" />}
-        {currentPage === 'categories' && <CategoriesPage key="categories" />}
-        {currentPage === 'anime-detail' && <AnimeDetailPage key="anime-detail" />}
-        {currentPage === 'watch' && <WatchPage key="watch" />}
-        {currentPage === 'favorites' && <FavoritesPage key="favorites" />}
-        {currentPage === 'profile' && <ProfilePage key="profile" />}
-        {currentPage === 'admin' && <AdminPanel key="admin" />}
-      </AnimatePresence>
+      {showDesktopSidebar && <DesktopSidebar />}
+      <div className={showDesktopSidebar ? 'md:pl-56' : ''}>
+        <AnimatePresence mode="wait">
+          {currentPage === 'auth' && <AuthPage key="auth" />}
+          {currentPage === 'home' && <HomePage key="home" />}
+          {currentPage === 'search' && <SearchPage key="search" />}
+          {currentPage === 'categories' && <CategoriesPage key="categories" />}
+          {currentPage === 'anime-detail' && <AnimeDetailPage key="anime-detail" />}
+          {currentPage === 'watch' && <WatchPage key="watch" />}
+          {currentPage === 'favorites' && <FavoritesPage key="favorites" />}
+          {currentPage === 'profile' && <ProfilePage key="profile" />}
+          {currentPage === 'admin' && <AdminPanel key="admin" />}
+        </AnimatePresence>
+      </div>
       {showBottomNav && <BottomNav />}
     </div>
   )
