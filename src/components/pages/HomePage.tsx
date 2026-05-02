@@ -21,7 +21,7 @@ export default function HomePage() {
         const [topRes, scheduledRes, popularRes] = await Promise.all([
           fetch('/api/anime/top'),
           fetch('/api/anime/scheduled'),
-          fetch('/api/anime?sort=views&limit=12'),
+          fetch('/api/anime?sort=date&limit=12'),
         ])
 
         const topData = await topRes.json()
@@ -118,8 +118,8 @@ export default function HomePage() {
             transition={{ delay: 0.3 }}
           >
             <div className="mb-4 flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-purple-400" />
-              <h2 className="text-lg font-bold text-white">Mashhur animelar</h2>
+              <TrendingUp className="h-5 w-5 text-green-400" />
+              <h2 className="text-lg font-bold text-white">Yangi qo&apos;shilgan</h2>
             </div>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
               {popularAnime.map((anime, i) => (
