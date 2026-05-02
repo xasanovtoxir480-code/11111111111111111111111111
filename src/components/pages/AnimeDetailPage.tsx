@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useAppStore, AnimeItem, EpisodeItem } from '@/lib/store'
 import EpisodeList from '@/components/anime/EpisodeList'
+import CommentSection from '@/components/anime/CommentSection'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Heart, Play, Eye, Loader2, Star } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -218,6 +219,15 @@ export default function AnimeDetailPage() {
             />
           </motion.div>
         )}
+
+        {/* Comments */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+        >
+          <CommentSection animeId={anime.id} />
+        </motion.div>
       </div>
     </motion.div>
   )

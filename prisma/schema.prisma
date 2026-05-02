@@ -25,6 +25,7 @@ model User {
   downloads     Download[]
   transactions  Transaction[]
   otpCodes      OtpCode[]
+  comments      Comment[]
 }
 
 model OtpCode {
@@ -58,6 +59,7 @@ model Anime {
 
   episodes    Episode[]
   favorites   Favorite[]
+  comments    Comment[]
 }
 
 model Episode {
@@ -115,4 +117,15 @@ model DailyStats {
   newPremiums   Int      @default(0)
   totalRevenue  Int      @default(0)
   activeUsers   Int      @default(0)
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  animeId   String
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  anime Anime @relation(fields: [animeId], references: [id], onDelete: Cascade)
 }
