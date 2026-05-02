@@ -47,7 +47,8 @@ export default function WatchPage() {
 
   const currentEpisode = episodes.find((ep) => ep.number === selectedEpisode)
   const isPremium = user?.isPremium || false
-  const isLocked = !user?.isPremium && selectedEpisode > 1
+  // 1-qism hamma uchun ochiq, 2+ faqat premium uchun
+  const isLocked = selectedEpisode > 1 && !isPremium
   const currentIndex = episodes.findIndex((ep) => ep.number === selectedEpisode)
   const hasNext = currentIndex >= 0 && currentIndex < episodes.length - 1
 

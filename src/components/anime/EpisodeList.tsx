@@ -15,8 +15,15 @@ export default function EpisodeList({ episodes, animeId, isPremium, isAuthentica
   const { navigate, setSelectedEpisode, setSelectedAnime, selectedAnime } = useAppStore()
 
   const handlePlay = (ep: EpisodeItem) => {
+    // 1-qism hamma uchun ochiq
+    if (ep.number === 1) {
+      setSelectedEpisode(ep.number)
+      navigate('watch')
+      return
+    }
+    // 2+ qism faqat premium foydalanuvchilar uchun
     if (!isAuthenticated) return
-    if (!isPremium && ep.number > 1) return
+    if (!isPremium) return
     setSelectedEpisode(ep.number)
     navigate('watch')
   }
@@ -31,7 +38,9 @@ export default function EpisodeList({ episodes, animeId, isPremium, isAuthentica
   return (
     <div className="space-y-2">
       {episodes.map((ep, i) => {
-        const isLocked = !isAuthenticated || (!isPremium && ep.number > 1)
+        const isLocked = ep.number > 1 && !isPremium
+        const isFirstFree = ep.number === 1
+
         return (
           <motion.div
             key={ep.id}
@@ -47,16 +56,23 @@ export default function EpisodeList({ episodes, animeId, isPremium, isAuthentica
           >
             {/* Episode number */}
             <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-sm font-bold ${
-              isLocked ? 'bg-gray-800 text-gray-600' : 'bg-purple-500/20 text-purple-400'
+              isLocked ? 'bg-gray-800 text-gray-600' : isFirstFree ? 'bg-green-500/20 text-green-400' : 'bg-purple-500/20 text-purple-400'
             }`}>
               {isLocked ? <Lock className="h-4 w-4" /> : ep.number}
             </div>
 
             {/* Info */}
             <div className="flex-1 min-w-0">
-              <p className="truncate text-sm font-medium text-white">
-                {ep.title || `${ep.number}-qism`}
-              </p>
+              <div className="flex items-center gap-2">
+                <p className="truncate text-sm font-medium text-white">
+                  {ep.title || `${ep.number}-qism`}
+                </p>
+                {isFirstFree && (
+                  <span className="shrink-0 rounded bg-green-500/20 px-1.5 py-0.5 text-[10px] font-medium text-green-400">
+                    Tekin
+                  </span>
+                )}
+              </div>
               <div className="mt-0.5 flex items-center gap-3 text-xs text-gray-500">
                 <span className="flex items-center gap-1">
                   <Eye className="h-3 w-3" />
@@ -77,7 +93,10 @@ export default function EpisodeList({ episodes, animeId, isPremium, isAuthentica
             )}
 
             {isLocked && (
-              <span className="text-[10px] font-medium text-gray-600">Premium</span>
+              <span className="shrink-0 rounded bg-yellow-500/20 px-2 py-0.5 text-[10px] font-medium text-yellow-400">
+                <Lock className="mr-0.5 inline h-3 w-3" />
+                Premium
+              </span>
             )}
           </motion.div>
         )
