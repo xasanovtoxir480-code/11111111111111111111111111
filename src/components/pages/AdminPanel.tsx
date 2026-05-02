@@ -90,7 +90,7 @@ function FileUpload({
     formData.append('type', type)
 
     try {
-      const token = localStorage.getItem('sessionToken')
+      const token = localStorage.getItem('anime_token')
       const res = await fetch('/api/upload', {
         method: 'POST',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
