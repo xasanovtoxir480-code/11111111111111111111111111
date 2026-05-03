@@ -1,12 +1,34 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAppStore } from '@/lib/store'
-import { Mail, ArrowRight, Sparkles, X, ArrowLeft } from 'lucide-react'
+import { Mail, ArrowRight, Sparkles, X, ArrowLeft, UserPlus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { InputOTP, InputOTPGroup, InputOTPSlot, InputOTPSeparator } from '@/components/ui/input-otp'
 import { motion, AnimatePresence } from 'framer-motion'
+
+interface GoogleAccount {
+  id: string
+  email: string
+  name: string
+  avatar: string | null
+}
+
+// Avatar ranglari - email ga qarab
+const AVATAR_COLORS = [
+  '#4285F4', '#EA4335', '#FBBC05', '#34A853',
+  '#8E44AD', '#E67E22', '#1ABC9C', '#E74C3C',
+  '#2ECC71', '#9B59B6', '#3498DB', '#F39C12',
+]
+
+function getAvatarColor(email: string): string {
+  let hash = 0
+  for (let i = 0; i < email.length; i++) {
+    hash = email.charCodeAt(i) + ((hash << 5) - hash)
+  }
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
+}
 
 export default function AuthPage() {
   const { setUser, setToken, navigate } = useAppStore()
@@ -16,9 +38,13 @@ export default function AuthPage() {
   const [step, setStep] = useState<'email' | 'otp'>('email')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  // Google modal state
   const [showGoogleModal, setShowGoogleModal] = useState(false)
-  const [googleEmail, setGoogleEmail] = useState('')
-  const [googleStep, setGoogleStep] = useState<'account' | 'password' | 'enter-otp'>('account')
+  const [googleAccounts, setGoogleAccounts] = useState<GoogleAccount[]>([])
+  const [googleLoading, setGoogleLoading] = useState(false)
+  const [googleSelected, setGoogleSelected] = useState<GoogleAccount | null>(null)
+  const [googleStep, setGoogleStep] = useState<'chooser' | 'verify'>('chooser')
 
   const handleSendOTP = async (emailAddr: string) => {
     setLoading(true)
@@ -44,7 +70,7 @@ export default function AuthPage() {
     }
   }
 
-  const handleVerifyOTP = async (otpCode: string) => {
+  const handleVerifyOTP = async (otpCode: string, targetEmail?: string) => {
     if (otpCode.length !== 6) {
       setError('6 raqamli kod kiriting')
       return
@@ -52,10 +78,11 @@ export default function AuthPage() {
     setLoading(true)
     setError('')
     try {
+      const verifyEmail = targetEmail || email
       const res = await fetch('/api/auth/verify-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, code: otpCode }),
+        body: JSON.stringify({ email: verifyEmail, code: otpCode }),
       })
       const data = await res.json()
       if (data.error) {
@@ -72,44 +99,46 @@ export default function AuthPage() {
     }
   }
 
-  const handleGoogleClick = () => {
+  // Google modal handlers
+  const handleGoogleClick = async () => {
     setShowGoogleModal(true)
-    setGoogleStep('account')
-    setGoogleEmail('')
+    setGoogleStep('chooser')
+    setGoogleSelected(null)
     setError('')
-  }
 
-  const handleGoogleSubmit = () => {
-    if (!googleEmail.includes('@gmail.com')) {
-      setError('Faqat @gmail.com manzilini kiriting')
-      return
+    // Fetch accounts
+    setGoogleLoading(true)
+    try {
+      const res = await fetch('/api/auth/google/accounts')
+      const data = await res.json()
+      setGoogleAccounts(data.accounts || [])
+    } catch {
+      setGoogleAccounts([])
+    } finally {
+      setGoogleLoading(false)
     }
-    setGoogleStep('password')
-    setError('')
   }
 
-  const handleGooglePassword = () => {
-    setGoogleStep('enter-otp')
+  const handleSelectAccount = async (account: GoogleAccount) => {
+    setGoogleSelected(account)
     setError('')
-    // Simulating Google sending OTP to the gmail
-    handleGoogleSendOTP()
-  }
 
-  const handleGoogleSendOTP = async () => {
+    // OTP yuborish
     setLoading(true)
-    setError('')
     try {
       const res = await fetch('/api/auth/google', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: googleEmail }),
+        body: JSON.stringify({ email: account.email }),
       })
       const data = await res.json()
       if (data.error) {
         setError(data.error)
       } else {
         setSentOtp(data.otp)
-        setEmail(googleEmail)
+        setEmail(account.email)
+        setOtp('')
+        setGoogleStep('verify')
       }
     } catch {
       setError('Server xatosi')
@@ -118,17 +147,22 @@ export default function AuthPage() {
     }
   }
 
-  const handleGoogleVerify = () => {
-    // Verify OTP and login
-    handleVerifyOTP(otp)
+  const handleNewGoogleAccount = () => {
+    closeGoogleModal()
+    // Focus email input
+    setTimeout(() => {
+      const input = document.querySelector('input[type="email"]') as HTMLInputElement
+      if (input) input.focus()
+    }, 300)
   }
 
   const closeGoogleModal = () => {
     setShowGoogleModal(false)
-    setGoogleStep('account')
-    setGoogleEmail('')
+    setGoogleStep('chooser')
+    setGoogleSelected(null)
     setOtp('')
     setError('')
+    setSentOtp('')
   }
 
   return (
@@ -308,7 +342,7 @@ export default function AuthPage() {
         </div>
       </motion.div>
 
-      {/* Google Sign-In Modal */}
+      {/* ===== Google Account Chooser Modal (Dark Theme) ===== */}
       <AnimatePresence>
         {showGoogleModal && (
           <>
@@ -318,180 +352,150 @@ export default function AuthPage() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={closeGoogleModal}
-              className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm"
+              className="fixed inset-0 z-[100] bg-[#1F1F1F]/95 backdrop-blur-sm"
             />
 
             {/* Modal */}
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              initial={{ opacity: 0, scale: 0.97, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="fixed left-1/2 top-1/2 z-[101] w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2"
+              exit={{ opacity: 0, scale: 0.97, y: 10 }}
+              transition={{ type: 'spring', damping: 30, stiffness: 400 }}
+              className="fixed left-1/2 top-1/2 z-[101] w-full max-w-[450px] -translate-x-1/2 -translate-y-1/2"
             >
-              <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#1a1a2e] shadow-2xl">
-                {/* Header */}
-                <div className="relative flex items-center justify-center border-b border-white/5 px-6 py-4">
-                  {googleStep !== 'account' && (
-                    <button
-                      onClick={() => {
-                        if (googleStep === 'enter-otp') {
-                          setGoogleStep('password')
-                          setOtp('')
-                        } else if (googleStep === 'password') {
-                          setGoogleStep('account')
-                        }
-                        setError('')
-                      }}
-                      className="absolute left-3 rounded-full p-1.5 text-gray-400 transition-colors hover:bg-white/5 hover:text-white"
-                    >
-                      <ArrowLeft className="h-5 w-5" />
-                    </button>
-                  )}
-                  <div className="flex items-center gap-2">
-                    <svg className="h-5 w-5" viewBox="0 0 24 24">
-                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/>
-                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                    </svg>
-                    <span className="text-base font-medium text-white">Google bilan kirish</span>
-                  </div>
-                  <button
-                    onClick={closeGoogleModal}
-                    className="absolute right-3 rounded-full p-1.5 text-gray-400 transition-colors hover:bg-white/5 hover:text-white"
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
-                </div>
-
-                {/* Body */}
-                <div className="p-6">
+              <div className="overflow-hidden rounded-lg border border-[#3C4043] bg-[#202124] shadow-[0_2px_24px_rgba(0,0,0,0.3)]">
+                <div className="px-6 py-6 sm:px-8 sm:py-8">
                   <AnimatePresence mode="wait">
-                    {googleStep === 'account' && (
+                    {googleStep === 'chooser' ? (
                       <motion.div
-                        key="g-account"
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: 20 }}
+                        key="chooser"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
                       >
-                        <div className="mb-6 text-center">
-                          <h3 className="text-lg font-medium text-white">Hisobni tanlang</h3>
-                          <p className="mt-1 text-sm text-gray-400">
-                            AnimeUZ ilovasiga kirish uchun Gmail manzilingizni kiriting
-                          </p>
+                        {/* Google Logo */}
+                        <div className="mb-3 flex items-center gap-2">
+                          <svg className="h-6 w-6" viewBox="0 0 24 24">
+                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/>
+                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                          </svg>
                         </div>
 
-                        <div className="space-y-4">
-                          <div className="relative">
-                            <svg className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <rect x="2" y="4" width="20" height="16" rx="2"/>
-                              <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
-                            </svg>
-                            <Input
-                              type="email"
-                              placeholder="ismingiz@gmail.com"
-                              value={googleEmail}
-                              onChange={(e) => setGoogleEmail(e.target.value)}
-                              onKeyDown={(e) => e.key === 'Enter' && handleGoogleSubmit()}
-                              className="border-white/10 bg-white/5 pl-10 text-white placeholder:text-gray-600 focus:border-blue-500"
-                            />
+                        {/* Title */}
+                        <p className="mb-1 text-base text-[#E8EAED]">Google hisobingiz bilan kirish</p>
+
+                        {/* App Name */}
+                        <p className="mb-6 text-base font-bold bg-gradient-to-r from-purple-400 to-violet-400 bg-clip-text text-transparent">
+                          AnimeUZ
+                        </p>
+
+                        {/* Heading */}
+                        <h3 className="mb-1 text-2xl font-bold text-white">Hisobni tanlang</h3>
+                        <p className="mb-6 text-sm text-[#9AA0A6]">AnimeUZ ilovasiga o&apos;tish</p>
+
+                        {/* Accounts list */}
+                        {googleLoading ? (
+                          <div className="flex justify-center py-8">
+                            <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#8AB4F8] border-t-transparent" />
                           </div>
+                        ) : (
+                          <div className="space-y-0">
+                            {googleAccounts.map((account, index) => (
+                              <div key={account.id}>
+                                {index > 0 && <div className="border-t border-[#3C4043]" />}
+                                <button
+                                  onClick={() => handleSelectAccount(account)}
+                                  className="flex w-full items-center gap-4 rounded-md px-2 py-3 text-left transition-colors hover:bg-[#3C4043]"
+                                >
+                                  {/* Avatar */}
+                                  {account.avatar ? (
+                                    <img
+                                      src={account.avatar}
+                                      alt=""
+                                      className="h-10 w-10 flex-shrink-0 rounded-full object-cover"
+                                    />
+                                  ) : (
+                                    <div
+                                      className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full text-sm font-medium text-white"
+                                      style={{ backgroundColor: getAvatarColor(account.email) }}
+                                    >
+                                      {(account.name || account.email)[0].toUpperCase()}
+                                    </div>
+                                  )}
 
-                          {error && <p className="text-sm text-red-400">{error}</p>}
+                                  {/* Name & Email */}
+                                  <div className="min-w-0 flex-1">
+                                    <p className="truncate text-base text-[#E8EAED]">{account.name}</p>
+                                    <p className="truncate text-sm text-[#9AA0A6]">{account.email}</p>
+                                  </div>
+                                </button>
+                              </div>
+                            ))}
 
-                          <Button
-                            onClick={handleGoogleSubmit}
-                            disabled={!googleEmail.includes('@gmail.com')}
-                            className="w-full bg-blue-500 text-white hover:bg-blue-600"
-                          >
-                            Davom etish
-                          </Button>
-
-                          <p className="text-center text-xs text-gray-500">
-                            Davom etish orqali Xizmat ko&apos;rsatish shartlari va Maxfiylik siyosatiga rozilik bildirasiz
-                          </p>
-                        </div>
-                      </motion.div>
-                    )}
-
-                    {googleStep === 'password' && (
-                      <motion.div
-                        key="g-password"
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: 20 }}
-                      >
-                        <div className="mb-6 flex items-center gap-4">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-500 text-sm font-bold text-white">
-                            {googleEmail[0]?.toUpperCase()}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-medium text-white">{googleEmail}</p>
-                            <p className="text-xs text-gray-400">Google hisobi</p>
-                          </div>
-                        </div>
-
-                        <div className="space-y-4">
-                          <div className="relative">
-                            <svg className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
-                              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                            </svg>
-                            <Input
-                              type="password"
-                              placeholder="Parol"
-                              className="border-white/10 bg-white/5 pl-10 text-white placeholder:text-gray-600 focus:border-blue-500"
-                            />
-                          </div>
-
-                          {error && <p className="text-sm text-red-400">{error}</p>}
-
-                          <Button
-                            onClick={handleGooglePassword}
-                            disabled={loading}
-                            className="w-full bg-blue-500 text-white hover:bg-blue-600"
-                          >
-                            {loading ? (
-                              <span className="flex items-center gap-2">
-                                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                                Tasdiqlanmoqda...
-                              </span>
-                            ) : (
-                              'Davom etish'
+                            {/* Boshqa hisobdan foydalanish */}
+                            {googleAccounts.length > 0 && (
+                              <div className="border-t border-[#3C4043]" />
                             )}
-                          </Button>
-
-                          <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 p-3">
-                            <p className="text-xs text-amber-300">
-                              Bu demo rejim. Haqiqiy Google hisobidan parol so&apos;ralmaydi. OTP kod yuboriladi.
-                            </p>
+                            <button
+                              onClick={handleNewGoogleAccount}
+                              className="flex w-full items-center gap-4 rounded-md px-2 py-3 text-left transition-colors hover:bg-[#3C4043]"
+                            >
+                              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[#3C4043]">
+                                <UserPlus className="h-5 w-5 text-[#8AB4F8]" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-medium text-[#8AB4F8]">Boshqa hisobdan foydalanish</p>
+                              </div>
+                            </button>
                           </div>
-                        </div>
+                        )}
+
+                        {/* Footer */}
+                        <p className="mt-6 text-xs leading-relaxed text-[#9AA0A6]">
+                          Bu ilovani ishlatishdan oldin AnimeUZ{' '}
+                          <span className="text-[#8AB4F8]">maxfiylik siyosati</span> va{' '}
+                          <span className="text-[#8AB4F8]">xizmat shartlari</span> bilan tanishib chiqing.
+                        </p>
                       </motion.div>
-                    )}
-
-                    {googleStep === 'enter-otp' && (
+                    ) : (
+                      /* ===== Google Verify OTP Step ===== */
                       <motion.div
-                        key="g-otp"
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: 20 }}
+                        key="verify"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
                       >
-                        <div className="mb-2 text-center">
-                          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-green-500/20">
-                            <svg className="h-6 w-6 text-green-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                              <polyline points="22 4 12 14.01 9 11.01"/>
-                            </svg>
-                          </div>
-                          <h3 className="text-lg font-medium text-white">Google tasdiqlash</h3>
-                          <p className="mt-1 text-sm text-gray-400">
-                            {googleEmail} manziliga 6 xonali kod yuborildi
-                          </p>
+                        {/* Google Logo */}
+                        <div className="mb-3 flex items-center gap-2">
+                          <svg className="h-6 w-6" viewBox="0 0 24 24">
+                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/>
+                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                          </svg>
+                          <button
+                            onClick={() => { setGoogleStep('chooser'); setOtp(''); setError('') }}
+                            className="ml-auto rounded-full p-1 text-[#9AA0A6] transition-colors hover:bg-[#3C4043] hover:text-white"
+                          >
+                            <X className="h-5 w-5" />
+                          </button>
                         </div>
 
-                        <div className="mb-4 mt-4 flex justify-center">
+                        {/* Selected account info */}
+                        <p className="mb-1 text-base text-[#E8EAED]">Google hisobingiz bilan kirish</p>
+                        <p className="mb-6 text-base font-bold bg-gradient-to-r from-purple-400 to-violet-400 bg-clip-text text-transparent">
+                          AnimeUZ
+                        </p>
+
+                        <h3 className="mb-1 text-2xl font-bold text-white">Tasdiqlash</h3>
+                        <p className="mb-6 text-sm text-[#9AA0A6]">
+                          {googleSelected?.email} manziliga kod yuborildi
+                        </p>
+
+                        {/* OTP Input */}
+                        <div className="mb-4 flex justify-center">
                           <InputOTP
                             maxLength={6}
                             value={otp}
@@ -499,27 +503,28 @@ export default function AuthPage() {
                               setOtp(value)
                               setError('')
                             }}
-                            onComplete={() => handleGoogleVerify()}
+                            onComplete={() => handleVerifyOTP(otp, email)}
                           >
                             <InputOTPGroup>
-                              <InputOTPSlot index={0} className="border-white/10 bg-white/5 text-white" />
-                              <InputOTPSlot index={1} className="border-white/10 bg-white/5 text-white" />
-                              <InputOTPSlot index={2} className="border-white/10 bg-white/5 text-white" />
+                              <InputOTPSlot index={0} className="h-12 w-11 border-[#3C4043] bg-[#3C4043] text-xl text-white focus:border-[#8AB4F8]" />
+                              <InputOTPSlot index={1} className="h-12 w-11 border-[#3C4043] bg-[#3C4043] text-xl text-white focus:border-[#8AB4F8]" />
+                              <InputOTPSlot index={2} className="h-12 w-11 border-[#3C4043] bg-[#3C4043] text-xl text-white focus:border-[#8AB4F8]" />
                             </InputOTPGroup>
-                            <InputOTPSeparator className="text-gray-600" />
+                            <InputOTPSeparator className="text-[#3C4043]" />
                             <InputOTPGroup>
-                              <InputOTPSlot index={3} className="border-white/10 bg-white/5 text-white" />
-                              <InputOTPSlot index={4} className="border-white/10 bg-white/5 text-white" />
-                              <InputOTPSlot index={5} className="border-white/10 bg-white/5 text-white" />
+                              <InputOTPSlot index={3} className="h-12 w-11 border-[#3C4043] bg-[#3C4043] text-xl text-white focus:border-[#8AB4F8]" />
+                              <InputOTPSlot index={4} className="h-12 w-11 border-[#3C4043] bg-[#3C4043] text-xl text-white focus:border-[#8AB4F8]" />
+                              <InputOTPSlot index={5} className="h-12 w-11 border-[#3C4043] bg-[#3C4043] text-xl text-white focus:border-[#8AB4F8]" />
                             </InputOTPGroup>
                           </InputOTP>
                         </div>
 
+                        {/* Demo OTP */}
                         {sentOtp && (
-                          <div className="mb-4 rounded-lg border border-purple-500/20 bg-purple-500/10 p-3 text-center">
-                            <div className="flex items-center justify-center gap-1 text-xs text-purple-300">
-                              <Sparkles className="h-3 w-3" />
-                              Demo kod: <span className="font-bold text-purple-200">{sentOtp}</span>
+                          <div className="mb-4 rounded-md border border-[#3C4043] bg-[#2A2A2A] p-3 text-center">
+                            <div className="flex items-center justify-center gap-1.5 text-xs text-[#9AA0A6]">
+                              <Sparkles className="h-3 w-3 text-[#8AB4F8]" />
+                              Demo kod: <span className="font-bold text-[#E8EAED]">{sentOtp}</span>
                             </div>
                           </div>
                         )}
@@ -527,19 +532,27 @@ export default function AuthPage() {
                         {error && <p className="mb-4 text-sm text-red-400">{error}</p>}
 
                         <Button
-                          onClick={handleGoogleVerify}
+                          onClick={() => handleVerifyOTP(otp, email)}
                           disabled={loading || otp.length !== 6}
-                          className="w-full bg-blue-500 text-white hover:bg-blue-600"
+                          className="w-full bg-[#8AB4F8] text-[#202124] font-medium hover:bg-[#aecbfa]"
                         >
                           {loading ? (
                             <span className="flex items-center gap-2">
-                              <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                              <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#202124] border-t-transparent" />
                               Tasdiqlanmoqda...
                             </span>
-                            ) : (
+                          ) : (
                             'Tasdiqlash va kirish'
                           )}
                         </Button>
+
+                        <button
+                          onClick={() => { setGoogleStep('chooser'); setOtp(''); setError('') }}
+                          className="mt-3 flex w-full items-center justify-center gap-1 text-sm text-[#8AB4F8] hover:underline"
+                        >
+                          <ArrowLeft className="h-3.5 w-3.5" />
+                          Boshqa hisob tanlash
+                        </button>
                       </motion.div>
                     )}
                   </AnimatePresence>

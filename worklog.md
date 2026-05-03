@@ -63,3 +63,26 @@ Stage Summary:
 - Fixed infinite re-fetching caused by `favorites` in useEffect dependency array
 - Users see "Orqaga qaytish" button when anime/episodes fail to load instead of blank screen
 - Files modified: AnimeDetailPage.tsx, WatchPage.tsx
+---
+Task ID: 3
+Agent: Main Agent
+Task: Redesign Google login to look like Google Account Chooser (dark theme)
+
+Work Log:
+- Created /api/auth/google/accounts endpoint to fetch existing user accounts
+- Completely rewrote AuthPage.tsx Google modal to match Google's Account Chooser design
+- Dark theme (#202124 background, #3C4043 borders, #E8EAED text, #8AB4F8 links)
+- Google multicolor "G" logo at top
+- "Google hisobingiz bilan kirish" title + "AnimeUZ" in gradient purple
+- "Hisobni tanlang" heading + "AnimeUZ ilovasiga o'tish" subtitle
+- Account list with colored circle avatars, names and emails
+- Hover state with #3C4043 background
+- "Boshqa hisobdan foydalanish" option with UserPlus icon
+- Footer with privacy/terms text in #9AA0A6 with #8AB4F8 links
+- Verify OTP step with Google-styled dark inputs and #8AB4F8 blue button
+- Dynamic avatar colors based on email hash
+- Build verified successful, 3 accounts shown in chooser
+
+Stage Summary:
+- Google login now shows proper Account Chooser dark theme modal
+- Files: AuthPage.tsx (complete rewrite), /api/auth/google/accounts/route.ts (new)
