@@ -45,6 +45,44 @@ export default function AuthPage() {
   const [googleLoading, setGoogleLoading] = useState(false)
   const [googleSelected, setGoogleSelected] = useState<GoogleAccount | null>(null)
   const [googleStep, setGoogleStep] = useState<'chooser' | 'verify'>('chooser')
+  const [googleReady, setGoogleReady] = useState<boolean | null>(null)
+
+  // Google OAuth callback ni ushlash (URL param orqali token keladi)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const authStatus = params.get('auth')
+    const authToken = params.get('token')
+
+    if (authStatus === 'success' && authToken) {
+      // Google OAuth muvaffaqiyatli - token bilan kirish
+      setToken(authToken)
+      // URL dan paramlarni tozalash
+      window.history.replaceState({}, '', window.location.pathname)
+      // User ma'lumotlarini olish
+      fetch('/api/auth/me', {
+        headers: { Authorization: `Bearer ${authToken}` },
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.user) {
+            setUser(data.user)
+            navigate('home')
+          }
+        })
+        .catch(() => {})
+    } else if (authStatus === 'error') {
+      setError('Google kirish muvaffaqiyatsiz. Qayta urinib ko\'ring.')
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+  }, [])
+
+  // Google OAuth tayyorligini tekshirish
+  useEffect(() => {
+    fetch('/api/auth/google/authorize')
+      .then(r => r.json())
+      .then(data => setGoogleReady(data.error !== 'GOOGLE_OAUTH_NOT_CONFIGURED'))
+      .catch(() => setGoogleReady(false))
+  }, [])
 
   const handleSendOTP = async (emailAddr: string) => {
     setLoading(true)
@@ -101,6 +139,13 @@ export default function AuthPage() {
 
   // Google modal handlers
   const handleGoogleClick = async () => {
+    // Agar haqiqiy Google OAuth sozlangan bo'lsa - to'g'ridan-to'g'ri Google ga yo'naltirish
+    if (googleReady === true) {
+      window.location.href = '/api/auth/google/authorize'
+      return
+    }
+
+    // Aks holda demo modal ko'rsatish
     setShowGoogleModal(true)
     setGoogleStep('chooser')
     setGoogleSelected(null)
