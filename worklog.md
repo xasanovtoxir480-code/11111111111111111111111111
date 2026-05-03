@@ -86,3 +86,28 @@ Work Log:
 Stage Summary:
 - Google login now shows proper Account Chooser dark theme modal
 - Files: AuthPage.tsx (complete rewrite), /api/auth/google/accounts/route.ts (new)
+
+---
+Task ID: 4
+Agent: Main Agent
+Task: Replace mock Google Account Chooser with real Google OAuth
+
+Work Log:
+- Removed mock Google Account Chooser modal from AuthPage.tsx (300+ lines of mock UI code)
+- Removed mock API files: /api/auth/google/route.ts, /api/auth/google/accounts/route.ts
+- Updated AuthPage.tsx Google button to redirect directly to /api/auth/google/authorize
+- Updated authorize route to return redirect to error page when OAuth not configured
+- Created GoogleSetupPage.tsx - step-by-step OAuth setup guide in Uzbek
+- Added 'google-setup' to PageType in store.ts and page.tsx
+- Added oauthError state to AuthPage with yellow warning banner linking to setup guide
+- Updated .env with clear comments explaining Google Cloud Console setup
+- Server restarted and tested: authorize endpoint correctly returns 307 redirect
+
+Stage Summary:
+- Google "orqali kirish" button now triggers real Google OAuth flow
+- When OAuth not configured: shows warning + setup guide link
+- When OAuth configured: redirects to accounts.google.com for real sign-in
+- OAuth callback route already handles: token exchange, user creation/update, session token
+- Files modified: AuthPage.tsx, store.ts, page.tsx, .env, authorize/route.ts
+- Files created: GoogleSetupPage.tsx
+- Files deleted: api/auth/google/route.ts, api/auth/google/accounts/route.ts

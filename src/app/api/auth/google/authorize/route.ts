@@ -4,13 +4,11 @@ import { NextRequest, NextResponse } from 'next/server'
 export async function GET(request: NextRequest) {
   const clientId = process.env.GOOGLE_CLIENT_ID
   const redirectUri = process.env.GOOGLE_REDIRECT_URI
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
 
   if (!clientId || clientId === 'your-google-client-id.apps.googleusercontent.com') {
-    // Google OAuth sozlanmagan - demo rejimda modal ochish uchun signal
-    return NextResponse.json({ 
-      error: 'GOOGLE_OAUTH_NOT_CONFIGURED',
-      message: 'Google OAuth sozlanmagan. .env faylida GOOGLE_CLIENT_ID ni kiriting.' 
-    }, { status: 400 })
+    // Google OAuth sozlanmagan - setup guide sahifasiga yo'naltirish
+    return NextResponse.redirect(`${baseUrl}?auth=error&message=not_configured`)
   }
 
   const params = new URLSearchParams({
@@ -20,7 +18,7 @@ export async function GET(request: NextRequest) {
     scope: 'openid email profile',
     access_type: 'offline',
     prompt: 'select_account',
-    hl: 'uz', // O'zbek tilida
+    hl: 'uz',
   })
 
   const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`
