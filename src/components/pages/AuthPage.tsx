@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useAppStore } from '@/lib/store'
 import { Mail, ArrowRight, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -17,7 +17,16 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  // Prevent double submit
+  const verifyingRef = useRef(false)
+  // Keep email in ref for verify call
+  const emailRef = useRef('')
+
   const handleSendOTP = async (emailAddr: string) => {
+    if (!emailAddr) {
+      setError('Email kiriting')
+      return
+    }
     setLoading(true)
     setError('')
     try {
@@ -32,6 +41,7 @@ export default function AuthPage() {
       } else {
         setSentOtp(data.otp)
         setEmail(emailAddr)
+        emailRef.current = emailAddr
         setStep('otp')
       }
     } catch {
@@ -41,18 +51,28 @@ export default function AuthPage() {
     }
   }
 
-  const handleVerifyOTP = async (otpCode: string) => {
+  const handleVerifyOTP = async () => {
+    const otpCode = otp
+    const emailAddr = emailRef.current
+
     if (otpCode.length !== 6) {
       setError('6 raqamli kod kiriting')
       return
     }
+    if (!emailAddr) {
+      setError('Email topilmadi, qaytadan boshlang')
+      return
+    }
+    if (verifyingRef.current) return // Prevent double submit
+    verifyingRef.current = true
+
     setLoading(true)
     setError('')
     try {
       const res = await fetch('/api/auth/verify-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, code: otpCode }),
+        body: JSON.stringify({ email: emailAddr, code: otpCode }),
       })
       const data = await res.json()
       if (data.error) {
@@ -65,6 +85,8 @@ export default function AuthPage() {
       setError('Server xatosi')
     } finally {
       setLoading(false)
+      // Allow new submit after a short delay
+      setTimeout(() => { verifyingRef.current = false }, 2000)
     }
   }
 
@@ -125,10 +147,7 @@ export default function AuthPage() {
                   {error && <p className="text-sm text-red-400">{error}</p>}
 
                   <Button
-                    onClick={() => {
-                      if (!email) { setError('Email kiriting'); return }
-                      handleSendOTP(email)
-                    }}
+                    onClick={() => handleSendOTP(email)}
                     disabled={loading}
                     className="w-full bg-gradient-to-r from-purple-500 to-violet-600 text-white hover:from-purple-600 hover:to-violet-700"
                   >
@@ -155,7 +174,7 @@ export default function AuthPage() {
               >
                 <h2 className="mb-1 text-lg font-semibold text-white">Tasdiqlash kodi</h2>
                 <p className="mb-6 text-sm text-gray-400">
-                  {email} manziliga kod yuborildi
+                  {emailRef.current} manziliga kod yuborildi
                 </p>
 
                 <div className="mb-4 flex justify-center">
@@ -166,7 +185,6 @@ export default function AuthPage() {
                       setOtp(value)
                       setError('')
                     }}
-                    onComplete={(value) => handleVerifyOTP(value)}
                   >
                     <InputOTPGroup>
                       <InputOTPSlot index={0} className="border-white/10 bg-white/5 text-white" />
@@ -195,7 +213,7 @@ export default function AuthPage() {
                 {error && <p className="mb-4 text-sm text-red-400">{error}</p>}
 
                 <Button
-                  onClick={() => handleVerifyOTP(otp)}
+                  onClick={handleVerifyOTP}
                   disabled={loading || otp.length !== 6}
                   className="w-full bg-gradient-to-r from-purple-500 to-violet-600 text-white hover:from-purple-600 hover:to-violet-700"
                 >
@@ -214,6 +232,8 @@ export default function AuthPage() {
                     setStep('email')
                     setOtp('')
                     setError('')
+                    setSentOtp('')
+                    emailRef.current = ''
                   }}
                   className="mt-3 w-full text-sm text-gray-400 hover:text-white"
                 >
