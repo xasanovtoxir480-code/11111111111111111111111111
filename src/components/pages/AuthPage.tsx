@@ -166,7 +166,7 @@ export default function AuthPage() {
                       setOtp(value)
                       setError('')
                     }}
-                    onComplete={() => handleVerifyOTP(otp)}
+                    onComplete={(value) => handleVerifyOTP(value)}
                   >
                     <InputOTPGroup>
                       <InputOTPSlot index={0} className="border-white/10 bg-white/5 text-white" />
