@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { sanitizeUser } from './auth'
 
-export type PageType = 'auth' | 'home' | 'search' | 'categories' | 'anime-detail' | 'watch' | 'favorites' | 'profile' | 'admin' | 'google-setup'
+export type PageType = 'auth' | 'home' | 'search' | 'categories' | 'anime-detail' | 'watch' | 'favorites' | 'profile' | 'admin'
 
 export interface AnimeItem {
   id: string

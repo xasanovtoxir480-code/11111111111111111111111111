@@ -12,7 +12,6 @@ import WatchPage from '@/components/pages/WatchPage'
 import FavoritesPage from '@/components/pages/FavoritesPage'
 import ProfilePage from '@/components/pages/ProfilePage'
 import AdminPanel from '@/components/pages/AdminPanel'
-import GoogleSetupPage from '@/components/pages/GoogleSetupPage'
 import Navbar from '@/components/layout/Navbar'
 import BottomNav from '@/components/layout/BottomNav'
 import DesktopSidebar from '@/components/layout/DesktopSidebar'
@@ -39,9 +38,9 @@ export default function Home() {
     hydrate()
   }, [hydrate])
 
-  const showNav = currentPage !== 'auth' && currentPage !== 'watch' && currentPage !== 'google-setup'
-  const showBottomNav = currentPage !== 'auth' && currentPage !== 'watch' && currentPage !== 'admin' && currentPage !== 'google-setup'
-  const showDesktopSidebar = currentPage !== 'auth' && currentPage !== 'watch' && currentPage !== 'admin' && currentPage !== 'google-setup'
+  const showNav = currentPage !== 'auth' && currentPage !== 'watch'
+  const showBottomNav = currentPage !== 'auth' && currentPage !== 'watch' && currentPage !== 'admin'
+  const showDesktopSidebar = currentPage !== 'auth' && currentPage !== 'watch' && currentPage !== 'admin'
 
   // Show loading while hydrating (checking session on page reload)
   if (isHydrating) {
@@ -63,7 +62,6 @@ export default function Home() {
           {currentPage === 'favorites' && <FavoritesPage key="favorites" />}
           {currentPage === 'profile' && <ProfilePage key="profile" />}
           {currentPage === 'admin' && <AdminPanel key="admin" />}
-          {currentPage === 'google-setup' && <GoogleSetupPage key="google-setup" />}
         </AnimatePresence>
       </div>
       {showBottomNav && <BottomNav />}
