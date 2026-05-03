@@ -2,20 +2,29 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { generateToken, generateUserId } from '@/lib/auth'
 
+// Request dan asosiy URL ni olish (Caddy/Nginx reverse proxy orqali ishlaydi)
+function getBaseUrl(request: NextRequest): string {
+  const forwardedProto = request.headers.get('x-forwarded-proto') || 'http'
+  const host = request.headers.get('host') || 'localhost:3000'
+  return `${forwardedProto}://${host}`
+}
+
 // GET - Google OAuth callback
 export async function GET(request: NextRequest) {
   try {
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || getBaseUrl(request)
+
     const { searchParams } = new URL(request.url)
     const code = searchParams.get('code')
     const error = searchParams.get('error')
 
     if (error) {
       console.error('Google OAuth error:', error)
-      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}?auth=error&message=${encodeURIComponent(error)}`)
+      return NextResponse.redirect(`${baseUrl}?auth=error&message=${encodeURIComponent(error)}`)
     }
 
     if (!code) {
-      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}?auth=error&message=no_code`)
+      return NextResponse.redirect(`${baseUrl}?auth=error&message=no_code`)
     }
 
     const clientId = process.env.GOOGLE_CLIENT_ID
@@ -39,7 +48,7 @@ export async function GET(request: NextRequest) {
 
     if (!tokenData.access_token) {
       console.error('Google token error:', tokenData)
-      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}?auth=error&message=token_failed`)
+      return NextResponse.redirect(`${baseUrl}?auth=error&message=token_failed`)
     }
 
     // User ma'lumotlarini olish
@@ -50,7 +59,7 @@ export async function GET(request: NextRequest) {
     const googleUser = await userResponse.json()
 
     if (!googleUser.email) {
-      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}?auth=error&message=no_email`)
+      return NextResponse.redirect(`${baseUrl}?auth=error&message=no_email`)
     }
 
     // User bazada bor yoki yo'qligini tekshirish
@@ -91,12 +100,11 @@ export async function GET(request: NextRequest) {
     })
 
     // Redirect with token
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
     return NextResponse.redirect(`${baseUrl}?auth=success&token=${sessionToken}&userId=${user.id}`)
 
   } catch (err) {
     console.error('Google OAuth callback error:', err)
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || getBaseUrl(request)
     return NextResponse.redirect(`${baseUrl}?auth=error&message=server_error`)
   }
 }

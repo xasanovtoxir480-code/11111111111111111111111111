@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+// Request dan asosiy URL ni olish (Caddy/Nginx reverse proxy orqali ishlaydi)
+function getBaseUrl(request: NextRequest): string {
+  const forwardedProto = request.headers.get('x-forwarded-proto') || 'http'
+  const host = request.headers.get('host') || 'localhost:3000'
+  return `${forwardedProto}://${host}`
+}
+
 // GET - Google OAuth authorize (yo'naltirish)
 export async function GET(request: NextRequest) {
   const clientId = process.env.GOOGLE_CLIENT_ID
   const redirectUri = process.env.GOOGLE_REDIRECT_URI
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || getBaseUrl(request)
 
   if (!clientId || clientId === 'your-google-client-id.apps.googleusercontent.com') {
     // Google OAuth sozlanmagan - setup guide sahifasiga yo'naltirish
