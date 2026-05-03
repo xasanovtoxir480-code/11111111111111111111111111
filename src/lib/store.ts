@@ -200,43 +200,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           }
         } catch {}
       } else {
-        // Token invalid — try to restore from cached user as fallback
-        const cachedUser = loadFromStorage<User>('anime_user')
-        if (cachedUser) {
-          // Still show the cached user while token might be stale
-          // Re-create a fresh token
-          const reloginRes = await fetch('/api/auth/send-otp', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: cachedUser.email }),
-          })
-          const reloginData = await reloginRes.json()
-
-          if (reloginData.otp) {
-            // Auto-verify with the new OTP
-            const verifyRes = await fetch('/api/auth/verify-otp', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ email: cachedUser.email, code: reloginData.otp }),
-            })
-            const verifyData = await verifyRes.json()
-
-            if (verifyData.user && verifyData.token) {
-              set({
-                user: verifyData.user,
-                isAuthenticated: true,
-                token: verifyData.token,
-                isHydrating: false,
-                currentPage: 'home',
-              })
-              localStorage.setItem('anime_token', verifyData.token)
-              saveToStorage('anime_user', verifyData.user)
-              return
-            }
-          }
-        }
-
-        // Complete failure — clear everything
+        // Token invalid — go to auth page (no auto-relogin to avoid OTP conflicts)
         localStorage.removeItem('anime_token')
         localStorage.removeItem('anime_user')
         set({ token: null, user: null, isAuthenticated: false, isHydrating: false, currentPage: 'auth' })

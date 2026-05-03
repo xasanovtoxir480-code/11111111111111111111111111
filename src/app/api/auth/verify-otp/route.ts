@@ -5,6 +5,7 @@ import { generateToken } from '@/lib/auth'
 export async function POST(request: NextRequest) {
   try {
     const { email, code } = await request.json()
+    console.log('[VERIFY-OTP] Received:', { email, code, codeLength: code?.length })
 
     if (!email || !code) {
       return NextResponse.json({ error: 'Email va kod kiritilishi shart' }, { status: 400 })

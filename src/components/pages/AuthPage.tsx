@@ -21,6 +21,8 @@ export default function AuthPage() {
   const verifyingRef = useRef(false)
   // Keep email in ref for verify call
   const emailRef = useRef('')
+  // Keep OTP in ref for verify call (avoid stale closure)
+  const otpRef = useRef('')
 
   const handleSendOTP = async (emailAddr: string) => {
     if (!emailAddr) {
@@ -52,8 +54,9 @@ export default function AuthPage() {
   }
 
   const handleVerifyOTP = async () => {
-    const otpCode = otp
+    const otpCode = otpRef.current
     const emailAddr = emailRef.current
+    console.log('[VERIFY] otpRef:', otpCode, 'emailRef:', emailAddr)
 
     if (otpCode.length !== 6) {
       setError('6 raqamli kod kiriting')
@@ -183,6 +186,7 @@ export default function AuthPage() {
                     value={otp}
                     onChange={(value) => {
                       setOtp(value)
+                      otpRef.current = value
                       setError('')
                     }}
                   >
