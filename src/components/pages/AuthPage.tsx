@@ -455,8 +455,8 @@ export default function AuthPage() {
                         {/* Footer */}
                         <p className="mt-6 text-xs leading-relaxed text-[#9AA0A6]">
                           Bu ilovani ishlatishdan oldin AnimeUZ{' '}
-                          <span className="text-[#8AB4F8]">maxfiylik siyosati</span> va{' '}
-                          <span className="text-[#8AB4F8]">xizmat shartlari</span> bilan tanishib chiqing.
+                          <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" className="text-[#8AB4F8] hover:underline">maxfiylik siyosati</a> va{' '}
+                          <a href="https://policies.google.com/terms" target="_blank" rel="noopener noreferrer" className="text-[#8AB4F8] hover:underline">xizmat shartlari</a> bilan tanishib chiqing.
                         </p>
                       </motion.div>
                     ) : (
